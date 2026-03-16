@@ -354,9 +354,13 @@ export default function ShowcasePage() {
             transition={{ duration: 0.6, delay: 0.1, ease }}
           >
             <div className="header-left">
-              <span className="version-badge">v0.1.0</span>
-              <h1 className="page-title">agentk</h1>
-              <p className="tagline">Fast, composable command menu for the agentic web.</p>
+              <div className="title-row">
+                <h1 className="page-title">agentk</h1>
+                <span className="version-badge">v0.1.0</span>
+              </div>
+              <p className="tagline">A command palette that understands natural language.</p>
+              <p className="tagline-sub">Browse tools directly or let the built-in agent orchestrate them.</p>
+              <p className="tagline-traits">Fast, composable, unstyled.</p>
             </div>
             <div className="header-right">
               <button className="install-btn" onClick={handleCopy}>

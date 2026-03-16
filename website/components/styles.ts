@@ -184,17 +184,21 @@ export const showcaseStyles = `
     gap: 6px;
   }
 
+  .title-row {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+  }
+
   .version-badge {
     display: inline-flex;
-    align-self: flex-start;
     align-items: center;
     color: var(--gray11);
     background: var(--grayA3);
-    padding: 4px 8px;
+    padding: 3px 8px;
     border-radius: 4px;
     font-weight: 500;
-    font-size: 14px;
-    margin-bottom: 8px;
+    font-size: 13px;
     border: none;
   }
 
@@ -207,10 +211,27 @@ export const showcaseStyles = `
   }
 
   .tagline {
+    font-size: 17px;
+    color: var(--text);
+    font-weight: 400;
+    margin-top: 4px;
+    line-height: 1.4;
+  }
+
+  .tagline-sub {
     font-size: 15px;
     color: var(--text-2);
     font-weight: 400;
     margin-top: 2px;
+    line-height: 1.4;
+  }
+
+  .tagline-traits {
+    font-size: 13px;
+    color: var(--text-3);
+    font-weight: 400;
+    margin-top: 6px;
+    letter-spacing: 0.02em;
   }
 
   .header-right {
@@ -1464,7 +1485,7 @@ export const showcaseStyles = `
     align-items: center;
     justify-content: center;
     gap: 4px;
-    margin-top: 32px;
+    margin-top: 52px;
     position: relative;
   }
 
@@ -1602,7 +1623,7 @@ export const showcaseStyles = `
 
   /* ─── Code block — matches cmdk styling ─── */
   .code-area {
-    margin: 40px auto 0;
+    margin: 56px auto 0;
     width: 100%;
     max-width: 640px;
     position: relative;
