@@ -81,8 +81,64 @@ type CommandFilter = (value: string, search: string, keywords?: string[]) => num
 // Types — AgentK extensions
 // ─────────────────────────────────────────────────────────────
 
+/**
+ * The possible modes of the AgentK state machine.
+ *
+ * - `'browse'`    — Default state. User browses and filters the tool list.
+ * - `'form'`      — A tool has been selected and its parameter form is displayed.
+ * - `'executing'` — A tool call is in progress.
+ * - `'result'`    — Execution finished; result or error is displayed.
+ * - `'planning'`  — The LLM agent is generating a plan (thinking).
+ * - `'approval'`  — The agent's plan is shown for human approval.
+ */
 export type AgentKMode = 'browse' | 'form' | 'executing' | 'result' | 'planning' | 'approval'
 
+/**
+ * User-facing label overrides for internationalisation.
+ * Every key is optional — omitted keys fall back to their English defaults.
+ */
+export type AgentKLabels = {
+  cancel?: string
+  execute?: string
+  approve?: string
+  reject?: string
+  thinking?: string
+  noResults?: string
+  askAgent?: string
+  done?: string
+  executing?: string
+  result?: string
+  error?: string
+  step?: string
+  of?: string
+  complete?: string
+  planned?: string
+  actions?: string
+}
+
+const DEFAULT_LABELS: Required<AgentKLabels> = {
+  cancel: 'Cancel',
+  execute: 'Execute',
+  approve: 'Approve',
+  reject: 'Reject',
+  thinking: 'Thinking...',
+  noResults: 'No results found.',
+  askAgent: 'Ask the agent',
+  done: 'Done',
+  executing: 'Executing',
+  result: 'Result',
+  error: 'Error',
+  step: 'Step',
+  of: 'of',
+  complete: 'complete',
+  planned: 'planned',
+  actions: 'actions',
+}
+
+/**
+ * JSON-Schema-style description of a tool's input parameters.
+ * Only `'object'` schemas are supported — each key in `properties` describes one parameter.
+ */
 export type ToolInputSchema = {
   type: 'object'
   properties: Record<
@@ -99,13 +155,39 @@ export type ToolInputSchema = {
   required?: string[]
 }
 
+/**
+ * Definition of a tool that can appear in the command palette.
+ *
+ * Tools can be passed directly via the `tools` prop on `Command`, or
+ * discovered at runtime through the WebMCP `navigator.modelContext` API.
+ *
+ * @example
+ * ```tsx
+ * const myTool: AgentKToolDef = {
+ *   name: 'set_brightness',
+ *   description: 'Set display brightness',
+ *   inputSchema: {
+ *     type: 'object',
+ *     properties: {
+ *       level: { type: 'number', minimum: 0, maximum: 100 },
+ *     },
+ *     required: ['level'],
+ *   },
+ * }
+ * ```
+ */
 export type AgentKToolDef = {
+  /** Unique machine-readable identifier (e.g. `'set_brightness'`). */
   name: string
-  /** Human-readable label. Falls back to humanized `name` if omitted. */
+  /** Human-readable label. Falls back to humanised `name` if omitted. */
   label?: string
+  /** Short text shown beneath the tool name in the list. */
   description?: string
+  /** JSON-Schema definition of the tool's input parameters. When omitted the tool executes with no parameters. */
   inputSchema?: ToolInputSchema
+  /** Icon rendered beside the tool name. Any valid React node. */
   icon?: React.ReactNode
+  /** Extra keywords used when filtering the palette (not displayed). */
   keywords?: string[]
 }
 
@@ -117,22 +199,54 @@ function humanizeToolName(name: string): string {
     .replace(/\b\w/g, (c) => c.toUpperCase())
 }
 
+/**
+ * Snapshot of a single tool execution.
+ *
+ * Lifecycle: when a tool begins executing, a `ToolExecution` is created with
+ * `startedAt` set.  On success `result` is populated; on failure `error` is
+ * set instead.  The object is available through `useAgentK().state.execution`.
+ */
 export type ToolExecution = {
+  /** The `name` of the tool being executed. */
   toolName: string
+  /** Parameter values passed to the tool. */
   parameters: Record<string, any>
+  /** Populated on successful completion. */
   result?: any
+  /** Populated when execution fails. */
   error?: string
+  /** `Date.now()` timestamp of when execution began. */
   startedAt: number
+  /** @internal Monotonic counter for dedup — not part of the public API. */
+  _seq?: number
 }
 
+/**
+ * A single entry in the agent activity log.
+ *
+ * Type values:
+ * - `'intent'`       — The user's natural-language query was sent to the agent.
+ * - `'plan'`         — The agent produced a plan (one or more tool calls).
+ * - `'tool_start'`   — A tool call began executing.
+ * - `'tool_complete'` — A tool call finished successfully.
+ * - `'tool_error'`   — A tool call failed.
+ */
 export type ActivityEntry = {
+  /** Unique identifier (auto-generated). */
   id: string
+  /** `Date.now()` when the entry was created. */
   timestamp: number
+  /** Discriminator for the kind of activity. */
   type: 'intent' | 'plan' | 'tool_start' | 'tool_complete' | 'tool_error'
+  /** Present for tool-related entries. */
   toolName?: string
+  /** Parameters passed to the tool (tool entries only). */
   parameters?: Record<string, any>
+  /** Execution result (tool_complete only). */
   result?: any
+  /** Error message (tool_error only). */
   error?: string
+  /** Human-readable summary of the activity. */
   message: string
 }
 
@@ -155,6 +269,8 @@ type AgentKContextValue = {
   setParameter: (name: string, value: any) => void
   execute: () => void
   reset: () => void
+  /** Abort the currently executing tool call and return to browse mode. */
+  cancel: () => void
   webmcpAvailable: boolean
   // Agent mode
   agentAvailable: boolean
@@ -166,6 +282,12 @@ type AgentKContextValue = {
   tools: AgentKToolDef[]
   /** True when no tools match the current search but the agent can interpret it */
   agentHintVisible: boolean
+  /** Resolved i18n labels (defaults merged with user overrides). */
+  labels: Required<AgentKLabels>
+  /** Custom tool-name formatter. Falls back to `humanizeToolName`. */
+  formatToolName: (name: string) => string
+  /** @internal — validation gate registered by ToolForm. Returns true if valid. */
+  _validateRef: React.MutableRefObject<(() => boolean) | null>
 }
 
 type ToolItemProps = Children &
@@ -214,7 +336,7 @@ type CommandProps = Children &
     /** Tool definitions to register in the palette */
     tools?: AgentKToolDef[]
     /** Execute a tool. If omitted, uses WebMCP navigator.modelContextTesting.executeTool */
-    onToolExecute?: (toolName: string, parameters: Record<string, any>) => Promise<any>
+    onToolExecute?: (toolName: string, parameters: Record<string, any>, signal?: AbortSignal) => Promise<any>
     /** Called when a tool execution completes */
     onToolResult?: (toolName: string, result: any) => void
     /** Called when a tool execution fails */
@@ -229,6 +351,31 @@ type CommandProps = Children &
     onAgentApprove?: (plan: AgentKPlan) => void
     /** Called when user rejects a plan */
     onAgentReject?: (plan: AgentKPlan) => void
+    /**
+     * Execution timeout in milliseconds. Defaults to `30000` (30 s).
+     * Set to `0` or `Infinity` to disable.
+     */
+    timeout?: number
+    /**
+     * Override the default UI strings for internationalisation.
+     * Any key that is omitted falls back to its English default.
+     *
+     * @example
+     * ```tsx
+     * <Command labels={{ execute: 'Ausführen', cancel: 'Abbrechen' }} />
+     * ```
+     */
+    labels?: AgentKLabels
+    /**
+     * Custom function to convert machine tool names to display strings.
+     * When provided, replaces the built-in `humanizeToolName` everywhere.
+     *
+     * @example
+     * ```tsx
+     * <Command formatToolName={(n) => n.toUpperCase()} />
+     * ```
+     */
+    formatToolName?: (name: string) => string
   }
 
 // ─────────────────────────────────────────────────────────────
@@ -306,10 +453,11 @@ type AgentKAction =
   | { type: 'APPROVE_PLAN' }
   | { type: 'REJECT_PLAN' }
   | { type: 'MODIFY_PLAN_CALL'; index: number; parameters: Record<string, any> }
-  | { type: 'ADVANCE_PLAN' }
+  | { type: 'ADVANCE_PLAN'; result?: any }
   | { type: 'LOG_ACTIVITY'; entry: Omit<ActivityEntry, 'id' | 'timestamp'> }
 
 let activityId = 0
+let executionSeq = 0
 
 const initialAgentKState: AgentKInternalState = {
   mode: 'browse',
@@ -341,7 +489,7 @@ function agentKReducer(state: AgentKInternalState, action: AgentKAction): AgentK
         mode: hasParams ? 'form' : 'executing',
         execution: hasParams
           ? null
-          : { toolName: tool.name, parameters: defaults, startedAt: Date.now() },
+          : { toolName: tool.name, parameters: defaults, startedAt: Date.now(), _seq: ++executionSeq },
       }
     }
     case 'SET_MODE':
@@ -356,6 +504,7 @@ function agentKReducer(state: AgentKInternalState, action: AgentKAction): AgentK
           toolName: action.toolName,
           parameters: action.parameters,
           startedAt: Date.now(),
+          _seq: ++executionSeq,
         },
       }
     case 'COMPLETE_EXECUTION':
@@ -422,6 +571,7 @@ function agentKReducer(state: AgentKInternalState, action: AgentKAction): AgentK
           toolName: call.toolName,
           parameters: call.parameters,
           startedAt: Date.now(),
+          _seq: ++executionSeq,
         },
         activityLog: [...state.activityLog, entry],
       }
@@ -445,8 +595,13 @@ function agentKReducer(state: AgentKInternalState, action: AgentKAction): AgentK
       if (!state.plan) return { ...state, mode: 'result' as AgentKMode }
       const nextIndex = state.planIndex + 1
       if (nextIndex >= state.plan.calls.length) {
-        // All calls done
-        return { ...state, mode: 'result' as AgentKMode, planIndex: nextIndex }
+        // All calls done — store the last tool's result on the execution
+        return {
+          ...state,
+          mode: 'result' as AgentKMode,
+          planIndex: nextIndex,
+          execution: state.execution ? { ...state.execution, result: action.result } : null,
+        }
       }
       // Execute next call in the plan
       const nextCall = state.plan.calls[nextIndex]
@@ -466,6 +621,7 @@ function agentKReducer(state: AgentKInternalState, action: AgentKAction): AgentK
           toolName: nextCall.toolName,
           parameters: nextCall.parameters,
           startedAt: Date.now(),
+          _seq: ++executionSeq,
         },
         activityLog: [...state.activityLog, entry],
       }
@@ -487,6 +643,29 @@ function agentKReducer(state: AgentKInternalState, action: AgentKAction): AgentK
 // Command root — extended with AgentK mode handling
 // ─────────────────────────────────────────────────────────────
 
+/**
+ * Root component of the command palette.
+ *
+ * Manages filtering, selection, keyboard navigation, the AgentK state
+ * machine (browse → form → executing → result), and optional LLM agent
+ * integration (planning → approval).
+ *
+ * Attach sub-components via `Command.List`, `Command.Input`, `Command.Tool`,
+ * `Command.ToolForm`, `Command.ToolResult`, `Command.Approval`, etc.
+ *
+ * @example
+ * ```tsx
+ * <Command tools={tools} onToolExecute={exec}>
+ *   <Command.Input placeholder="Type a command..." />
+ *   <Command.List>
+ *     <Command.Empty>No results found.</Command.Empty>
+ *     {tools.map(t => <Command.Tool key={t.name} tool={t} />)}
+ *   </Command.List>
+ *   <Command.ToolForm />
+ *   <Command.ToolResult />
+ * </Command>
+ * ```
+ */
 const Command = React.forwardRef<HTMLDivElement, CommandProps>((props, forwardedRef) => {
   const state = useLazyRef<State>(() => ({
     search: '',
@@ -520,6 +699,9 @@ const Command = React.forwardRef<HTMLDivElement, CommandProps>((props, forwarded
     onToolResult,
     onToolError,
     onModeChange,
+    timeout: timeoutMs = 30000,
+    labels: labelOverrides,
+    formatToolName: formatToolNameProp,
     // Agent mode props
     agent,
     onAgentPlan,
@@ -527,6 +709,18 @@ const Command = React.forwardRef<HTMLDivElement, CommandProps>((props, forwarded
     onAgentReject,
     ...etc
   } = props
+
+  // Merge user label overrides with defaults
+  const resolvedLabels: Required<AgentKLabels> = React.useMemo(
+    () => (labelOverrides ? { ...DEFAULT_LABELS, ...labelOverrides } : DEFAULT_LABELS),
+    [labelOverrides],
+  )
+
+  // Resolve the tool-name formatter
+  const resolvedFormatToolName = React.useCallback(
+    (name: string) => (formatToolNameProp ? formatToolNameProp(name) : humanizeToolName(name)),
+    [formatToolNameProp],
+  )
 
   const listId = useId()
   const labelId = useId()
@@ -544,50 +738,123 @@ const Command = React.forwardRef<HTMLDivElement, CommandProps>((props, forwarded
   // Track when agent hint should show (no matches + has search + has agent + browse mode)
   const [agentHintVisible, setAgentHintVisible] = React.useState(false)
 
-  // Notify mode changes
+  // ── P1.6: Cancellation via AbortController ──
+  const abortControllerRef = React.useRef<AbortController | null>(null)
+
+  // ── P0.1: Validation gate ref (registered by ToolForm) ──
+  const validateRef = React.useRef<(() => boolean) | null>(null)
+
+  // ── P1.10: Mode transition animation attributes ──
+  const prevModeRef = React.useRef<AgentKMode>(akState.mode)
+  const [transitionAttrs, setTransitionAttrs] = React.useState<{
+    entering?: AgentKMode
+    exiting?: AgentKMode
+  }>({})
+
+  // Notify mode changes + track transitions
   React.useEffect(() => {
     onModeChange?.(akState.mode)
+
+    const prev = prevModeRef.current
+    if (prev !== akState.mode) {
+      setTransitionAttrs({ entering: akState.mode, exiting: prev })
+      prevModeRef.current = akState.mode
+
+      // Clear transition attributes after duration
+      let timer: ReturnType<typeof setTimeout>
+      const raf = requestAnimationFrame(() => {
+        timer = setTimeout(() => {
+          setTransitionAttrs({})
+        }, 150) // --agentk-transition-duration default
+      })
+
+      return () => {
+        cancelAnimationFrame(raf)
+        clearTimeout(timer)
+      }
+    }
   }, [akState.mode])
 
   // Dedup guard: prevent double execution in React strict mode
-  const lastExecutedAt = React.useRef<number>(0)
+  const lastExecutedSeq = React.useRef<number>(0)
 
   // Execute tool when entering 'executing' mode
   React.useEffect(() => {
     if (akState.mode === 'executing' && akState.execution) {
-      const { toolName, parameters, startedAt } = akState.execution
-      if (startedAt <= lastExecutedAt.current) return
-      lastExecutedAt.current = startedAt
+      const { toolName, parameters } = akState.execution
+      const seq = akState.execution._seq ?? 0
+      if (seq <= lastExecutedSeq.current) return
+      lastExecutedSeq.current = seq
       const isPlanExecution = akState.plan !== null
+
+      // ── P1.6: Tool call validation (agent-planned calls) ──
+      if (isPlanExecution && tools && tools.length > 0) {
+        const exists = tools.some((t) => t.name === toolName)
+        if (!exists) {
+          const available = tools.map((t) => t.name).join(', ')
+          const errorMsg = `Unknown tool: ${toolName}. Available tools: ${available}`
+          akDispatch({
+            type: 'LOG_ACTIVITY',
+            entry: { type: 'tool_error', toolName, error: errorMsg, message: `${toolName} failed: ${errorMsg}` },
+          })
+          akDispatch({ type: 'FAIL_EXECUTION', error: errorMsg })
+          onToolError?.(toolName, errorMsg)
+          return
+        }
+      }
+
+      // ── P1.6: AbortController + timeout ──
+      const controller = new AbortController()
+      abortControllerRef.current = controller
+
+      // Build combined signal: user cancel + timeout
+      let signal: AbortSignal = controller.signal
+      if (timeoutMs && timeoutMs > 0 && timeoutMs !== Infinity) {
+        try {
+          // AbortSignal.any & AbortSignal.timeout may not be available in all environments
+          const timeoutSignal = AbortSignal.timeout(timeoutMs)
+          signal = (AbortSignal as any).any
+            ? (AbortSignal as any).any([controller.signal, timeoutSignal])
+            : controller.signal
+        } catch {
+          // Fallback: just use the controller signal
+        }
+      }
+
       const doExecute = async () => {
         try {
+          if (signal.aborted) return
           let result: any
           if (onToolExecute) {
-            result = await onToolExecute(toolName, parameters)
+            result = await onToolExecute(toolName, parameters, signal)
           } else if (typeof navigator !== 'undefined' && navigator.modelContextTesting) {
             result = await navigator.modelContextTesting.executeTool(toolName, JSON.stringify(parameters))
           } else {
             throw new Error('No executor available. Provide onToolExecute or enable WebMCP.')
           }
+          if (signal.aborted) return
           // Log completion
           if (isPlanExecution) {
             akDispatch({
               type: 'LOG_ACTIVITY',
               entry: { type: 'tool_complete', toolName, result, message: `${toolName} completed` },
             })
-            akDispatch({ type: 'ADVANCE_PLAN' })
+            akDispatch({ type: 'ADVANCE_PLAN', result })
           } else {
             akDispatch({ type: 'COMPLETE_EXECUTION', result })
           }
           onToolResult?.(toolName, result)
         } catch (err: any) {
-          const errorMsg = err?.message || String(err)
+          if (signal.aborted) return
+          const isTimeout = err?.name === 'TimeoutError'
+          const errorMsg = isTimeout
+            ? `Execution timed out after ${(timeoutMs / 1000).toFixed(0)}s`
+            : (err?.message || String(err))
           if (isPlanExecution) {
             akDispatch({
               type: 'LOG_ACTIVITY',
               entry: { type: 'tool_error', toolName, error: errorMsg, message: `${toolName} failed: ${errorMsg}` },
             })
-            // Stop plan on error, show result
             akDispatch({ type: 'FAIL_EXECUTION', error: errorMsg })
           } else {
             akDispatch({ type: 'FAIL_EXECUTION', error: errorMsg })
@@ -596,8 +863,25 @@ const Command = React.forwardRef<HTMLDivElement, CommandProps>((props, forwarded
         }
       }
       doExecute()
+
+      // Fallback timeout for environments without AbortSignal.timeout
+      let fallbackTimer: ReturnType<typeof setTimeout> | undefined
+      if (timeoutMs && timeoutMs > 0 && timeoutMs !== Infinity && !(AbortSignal as any).any) {
+        fallbackTimer = setTimeout(() => {
+          if (!controller.signal.aborted) {
+            const errorMsg = `Execution timed out after ${(timeoutMs / 1000).toFixed(0)}s`
+            akDispatch({ type: 'FAIL_EXECUTION', error: errorMsg })
+            onToolError?.(toolName, errorMsg)
+            controller.abort()
+          }
+        }, timeoutMs)
+      }
+
+      return () => {
+        if (fallbackTimer) clearTimeout(fallbackTimer)
+      }
     }
-  }, [akState.mode, akState.execution?.startedAt])
+  }, [akState.mode, akState.execution?._seq])
 
   // Planning effect — call LLM when entering 'planning' mode
   const lastPlanningAt = React.useRef<number>(0)
@@ -629,8 +913,8 @@ const Command = React.forwardRef<HTMLDivElement, CommandProps>((props, forwarded
         akDispatch({ type: 'SET_PLAN', plan })
         onAgentPlan?.(plan)
 
-        // Auto-execute if approval not required
-        if (agent.requireApproval === false) {
+        // Auto-execute if approval not required (default: auto-approve)
+        if (!agent.requireApproval) {
           akDispatch({ type: 'APPROVE_PLAN' })
           onAgentApprove?.(plan)
         }
@@ -658,11 +942,22 @@ const Command = React.forwardRef<HTMLDivElement, CommandProps>((props, forwarded
       selectTool: (tool: AgentKToolDef) => akDispatch({ type: 'SELECT_TOOL', tool }),
       setParameter: (name: string, value: any) => akDispatch({ type: 'SET_PARAMETER', name, value }),
       execute: () => {
+        // If a validation gate is registered (by ToolForm), run it first
+        if (validateRef.current && !validateRef.current()) return
         const { activeTool, parameters } = akStateRef.current
         if (!activeTool) return
         akDispatch({ type: 'START_EXECUTION', toolName: activeTool.name, parameters })
       },
-      reset: () => akDispatch({ type: 'RESET' }),
+      reset: () => {
+        abortControllerRef.current?.abort()
+        abortControllerRef.current = null
+        akDispatch({ type: 'RESET' })
+      },
+      cancel: () => {
+        abortControllerRef.current?.abort()
+        abortControllerRef.current = null
+        akDispatch({ type: 'RESET' })
+      },
       webmcpAvailable,
       // Agent mode
       agentAvailable: !!agent,
@@ -684,8 +979,11 @@ const Command = React.forwardRef<HTMLDivElement, CommandProps>((props, forwarded
       activityLog: akState.activityLog,
       tools: tools || [],
       agentHintVisible,
+      labels: resolvedLabels,
+      formatToolName: resolvedFormatToolName,
+      _validateRef: validateRef,
     }),
-    [akState, webmcpAvailable, agent, tools, agentHintVisible],
+    [akState, webmcpAvailable, agent, tools, agentHintVisible, resolvedLabels, resolvedFormatToolName],
   )
 
   /** Controlled mode `value` handling. */
@@ -1007,6 +1305,9 @@ const Command = React.forwardRef<HTMLDivElement, CommandProps>((props, forwarded
       data-agentk-mode={akState.mode}
       data-agentk-agent={agent ? '' : undefined}
       data-agentk-hint={agentHintVisible ? '' : undefined}
+      data-agentk-entering={transitionAttrs.entering ?? undefined}
+      data-agentk-exiting={transitionAttrs.exiting ?? undefined}
+      style={{ ...((etc as any).style || {}), '--agentk-transition-duration': '150ms' } as React.CSSProperties}
       onKeyDown={(e) => {
         etc.onKeyDown?.(e)
 
@@ -1027,7 +1328,13 @@ const Command = React.forwardRef<HTMLDivElement, CommandProps>((props, forwarded
             case 'Enter': {
               // Only submit if not focused on a form field that needs Enter
               const active = document.activeElement
-              if (active?.tagName === 'SELECT' || active?.tagName === 'TEXTAREA') return
+              if (
+                active?.tagName === 'SELECT' ||
+                active?.tagName === 'TEXTAREA' ||
+                active?.tagName === 'BUTTON' ||
+                (active as HTMLInputElement)?.type === 'checkbox' ||
+                active?.getAttribute('role') === 'button'
+              ) return
               e.preventDefault()
               agentKContext.execute()
               return
@@ -1147,6 +1454,7 @@ const Command = React.forwardRef<HTMLDivElement, CommandProps>((props, forwarded
     </Primitive.div>
   )
 })
+Command.displayName = 'Command'
 
 // ─────────────────────────────────────────────────────────────
 // Original cmdk components
@@ -1350,6 +1658,24 @@ const List = React.forwardRef<HTMLDivElement, ListProps>((props, forwardedRef) =
   )
 })
 
+/**
+ * Command palette rendered inside a Radix Dialog (modal overlay).
+ *
+ * Accepts all `Command` props plus `open`, `onOpenChange`, `overlayClassName`,
+ * `contentClassName`, and `container`.
+ *
+ * @example
+ * ```tsx
+ * <Command.Dialog open={open} onOpenChange={setOpen} tools={tools}>
+ *   <Command.Input />
+ *   <Command.List>
+ *     {tools.map(t => <Command.Tool key={t.name} tool={t} />)}
+ *   </Command.List>
+ *   <Command.ToolForm />
+ *   <Command.ToolResult />
+ * </Command.Dialog>
+ * ```
+ */
 const Dialog = React.forwardRef<HTMLDivElement, DialogProps>((props, forwardedRef) => {
   const { open, onOpenChange, overlayClassName, contentClassName, container, ...etc } = props
   return (
@@ -1377,8 +1703,11 @@ const Empty = React.forwardRef<HTMLDivElement, EmptyProps>((props, forwardedRef)
 })
 
 /**
- * AgentHint — shown when no tools match but the agent can interpret the query.
+ * Shown when no tools match the current query but the agent can interpret it.
  * Replaces the dead-end "No matching tools." with an actionable prompt card.
+ *
+ * The component renders nothing unless the agent is configured and the palette
+ * search yields zero tool matches.  Style with `[data-agentk-agent-hint]`.
  */
 type AgentHintProps = Children & DivProps
 const AgentHint = React.forwardRef<HTMLDivElement, AgentHintProps>((props, forwardedRef) => {
@@ -1386,7 +1715,7 @@ const AgentHint = React.forwardRef<HTMLDivElement, AgentHintProps>((props, forwa
   const search = useCmdk((state) => state.search)
   if (!ak?.agentHintVisible) return null
   return (
-    <Primitive.div ref={forwardedRef} {...props} data-agentk-agent-hint="" role="presentation">
+    <Primitive.div ref={forwardedRef} {...props} data-agentk-agent-hint="" role="status" aria-live="polite">
       {props.children || (
         <>
           <div data-agentk-agent-hint-icon="">
@@ -1395,7 +1724,7 @@ const AgentHint = React.forwardRef<HTMLDivElement, AgentHintProps>((props, forwa
             </svg>
           </div>
           <div data-agentk-agent-hint-content="">
-            <div data-agentk-agent-hint-label="">Ask the agent</div>
+            <div data-agentk-agent-hint-label="">{ak.labels.askAgent}</div>
             <div data-agentk-agent-hint-query="">"{search}"</div>
           </div>
           <kbd data-agentk-agent-hint-kbd="">↵</kbd>
@@ -1404,6 +1733,7 @@ const AgentHint = React.forwardRef<HTMLDivElement, AgentHintProps>((props, forwa
     </Primitive.div>
   )
 })
+AgentHint.displayName = 'Command.AgentHint'
 
 const Loading = React.forwardRef<HTMLDivElement, LoadingProps>((props, forwardedRef) => {
   const { progress, children, label = 'Loading...', ...etc } = props
@@ -1431,12 +1761,15 @@ const Loading = React.forwardRef<HTMLDivElement, LoadingProps>((props, forwarded
 
 /**
  * A command item that represents a WebMCP tool.
+ *
  * When selected, transitions to form mode if the tool has parameters,
- * or executes immediately if it doesn't.
+ * or executes immediately if it doesn't.  Renders the tool's icon, name,
+ * and description by default, but accepts arbitrary children for full control.
  */
 const ToolItem = React.forwardRef<HTMLDivElement, ToolItemProps>((props, forwardedRef) => {
   const { tool, onExecuted, ...itemProps } = props
   const ak = React.useContext(AgentKContext)
+  const fmt = ak?.formatToolName ?? humanizeToolName
 
   return (
     <Item
@@ -1453,17 +1786,29 @@ const ToolItem = React.forwardRef<HTMLDivElement, ToolItemProps>((props, forward
       {props.children ?? (
         <>
           {tool.icon && <span data-agentk-tool-icon="">{tool.icon}</span>}
-          <span data-agentk-tool-name="">{tool.label || humanizeToolName(tool.name)}</span>
+          <span data-agentk-tool-name="">{tool.label || fmt(tool.name)}</span>
           {tool.description && <span data-agentk-tool-description="">{tool.description}</span>}
         </>
       )}
     </Item>
   )
 })
+ToolItem.displayName = 'Command.Tool'
 
 /**
  * Renders a parameter form for the active tool.
- * Only visible when mode is 'form'. Generates fields from the tool's inputSchema.
+ *
+ * Only visible when mode is `'form'`.  Generates fields from the tool's
+ * `inputSchema` automatically, or delegates to `renderField` for full control.
+ *
+ * @example
+ * ```tsx
+ * <Command.ToolForm
+ *   renderField={(name, schema, value, onChange) => (
+ *     <MyCustomInput name={name} value={value} onChange={onChange} />
+ *   )}
+ * />
+ * ```
  */
 const ToolForm = React.forwardRef<HTMLDivElement, ToolFormProps>((props, forwardedRef) => {
   const { children, renderField, ...etc } = props
@@ -1474,6 +1819,80 @@ const ToolForm = React.forwardRef<HTMLDivElement, ToolFormProps>((props, forward
   const parameters = ak?.state.parameters ?? {}
   const isVisible = ak?.state.mode === 'form' && !!activeTool
   const schema = activeTool?.inputSchema
+  const fmt = ak?.formatToolName ?? humanizeToolName
+  const labels = ak?.labels ?? DEFAULT_LABELS
+
+  // ── P0.1: Validation state ──
+  const [validationErrors, setValidationErrors] = React.useState<Record<string, string>>({})
+
+  const validateForm = React.useCallback((): boolean => {
+    if (!schema?.properties) return true
+    const errors: Record<string, string> = {}
+    const requiredFields = new Set(schema.required ?? [])
+    const params = ak?.state.parameters ?? {}
+
+    for (const [name, fieldSchema] of Object.entries(schema.properties)) {
+      const val = params[name]
+
+      // Required check
+      if (requiredFields.has(name)) {
+        if (val === undefined || val === null || val === '') {
+          errors[name] = `${fmt(name)} is required`
+          continue
+        }
+      }
+
+      // Number range check
+      if ((fieldSchema.type === 'number' || fieldSchema.type === 'integer') && val !== undefined && val !== '' && val !== null) {
+        const num = Number(val)
+        if (fieldSchema.minimum !== undefined && num < fieldSchema.minimum) {
+          errors[name] = `Minimum is ${fieldSchema.minimum}`
+        } else if (fieldSchema.maximum !== undefined && num > fieldSchema.maximum) {
+          errors[name] = `Maximum is ${fieldSchema.maximum}`
+        }
+      }
+
+      // Enum/select required check (value is still placeholder "")
+      if (fieldSchema.enum && requiredFields.has(name) && (val === '' || val === undefined || val === null)) {
+        errors[name] = `${fmt(name)} is required`
+      }
+    }
+
+    setValidationErrors(errors)
+    return Object.keys(errors).length === 0
+  }, [schema, ak?.state.parameters, fmt])
+
+  // Clear a single field's error when its value changes
+  const handleFieldChange = React.useCallback((name: string, value: any) => {
+    if (!ak) return
+    ak.setParameter(name, value)
+    setValidationErrors((prev) => {
+      if (!(name in prev)) return prev
+      const next = { ...prev }
+      delete next[name]
+      return next
+    })
+  }, [ak])
+
+  // Register validation gate into context so Enter key also validates
+  React.useEffect(() => {
+    if (!ak || !isVisible) return
+    ak._validateRef.current = validateForm
+    return () => {
+      ak._validateRef.current = null
+    }
+  }, [ak, isVisible, validateForm])
+
+  // Validated submit (used by button; Enter key goes through context.execute → _validateRef)
+  const handleSubmit = React.useCallback(() => {
+    if (!ak) return
+    ak.execute()
+  }, [ak])
+
+  // Clear errors on tool change or reset
+  React.useEffect(() => {
+    setValidationErrors({})
+  }, [activeTool?.name, isVisible])
 
   // Seed default values for range/number fields that have min+max (browser renders midpoint but state is empty)
   React.useEffect(() => {
@@ -1502,39 +1921,59 @@ const ToolForm = React.forwardRef<HTMLDivElement, ToolFormProps>((props, forward
 
   const fields = Object.entries(schema.properties)
   const required = new Set(schema.required ?? [])
+  const hasErrors = Object.keys(validationErrors).length > 0
 
   return (
-    <Primitive.div ref={forwardedRef} {...etc} data-agentk-form="">
+    <Primitive.div
+      ref={forwardedRef}
+      {...etc}
+      data-agentk-form=""
+      data-agentk-form-invalid={hasErrors ? '' : undefined}
+    >
       <div data-agentk-form-heading="">
         {activeTool.icon && <span data-agentk-tool-icon="">{activeTool.icon}</span>}
-        <span data-agentk-form-title="">{activeTool.label || humanizeToolName(activeTool.name)}</span>
+        <span data-agentk-form-title="">{activeTool.label || fmt(activeTool.name)}</span>
         {activeTool.description && <span data-agentk-form-description="">{activeTool.description}</span>}
       </div>
       <div data-agentk-form-fields="">
         {fields.map(([name, fieldSchema], i) => {
           const value = parameters[name] ?? fieldSchema.default ?? ''
           const isRequired = required.has(name)
+          const fieldError = validationErrors[name]
 
           if (renderField) {
             return (
-              <div key={name} data-agentk-form-field="">
-                {renderField(name, fieldSchema, value, (v) => ak.setParameter(name, v))}
+              <div key={name} data-agentk-form-field="" data-agentk-field-error={fieldError ? '' : undefined}>
+                {renderField(name, fieldSchema, value, (v) => handleFieldChange(name, v))}
+                {fieldError && (
+                  <span data-agentk-field-error-message="" id={name + '-error'} role="alert">
+                    {fieldError}
+                  </span>
+                )}
               </div>
             )
           }
 
-          const humanLabel = humanizeToolName(name)
+          const humanLabel = fmt(name)
           const hintText = fieldSchema.description
           // Strip label prefix from hint to avoid "Brightness / Brightness 0–100" redundancy
           const hintLower = (hintText || '').toLowerCase()
           const labelLower = humanLabel.toLowerCase()
-          const dedupedHint = hintLower.startsWith(labelLower)
+          // Only strip if hint starts with the full label followed by a non-letter (word boundary)
+          const isExactPrefix = hintLower.startsWith(labelLower) &&
+            (hintLower.length === labelLower.length || !/[a-z]/.test(hintLower[labelLower.length]))
+          const dedupedHint = isExactPrefix
             ? hintText!.slice(humanLabel.length).replace(/^[\s:–—-]+/, '')
             : hintText
           const showHint = dedupedHint && dedupedHint.length > 0
 
           return (
-            <div key={name} data-agentk-form-field="" style={{ '--delay': `${(i + 1) * 60}ms` } as React.CSSProperties}>
+            <div
+              key={name}
+              data-agentk-form-field=""
+              data-agentk-field-error={fieldError ? '' : undefined}
+              style={{ '--delay': `${(i + 1) * 60}ms` } as React.CSSProperties}
+            >
               <label data-agentk-form-label="">
                 {humanLabel}
                 {isRequired && <span data-agentk-required="">*</span>}
@@ -1547,28 +1986,38 @@ const ToolForm = React.forwardRef<HTMLDivElement, ToolFormProps>((props, forward
                 name={name}
                 schema={fieldSchema}
                 value={value}
-                onChange={(v) => ak.setParameter(name, v)}
+                onChange={(v) => handleFieldChange(name, v)}
+                error={fieldError}
               />
+              {fieldError && (
+                <span data-agentk-field-error-message="" id={name + '-error'} role="alert">
+                  {fieldError}
+                </span>
+              )}
             </div>
           )
         })}
       </div>
       <div data-agentk-form-actions="">
         <button data-agentk-form-cancel="" onClick={() => ak.reset()} type="button">
-          Cancel
+          {labels.cancel}
         </button>
-        <button data-agentk-form-submit="" onClick={() => ak.execute()} type="button">
-          Execute
+        <button data-agentk-form-submit="" onClick={handleSubmit} type="button">
+          {labels.execute}
         </button>
       </div>
       {children}
     </Primitive.div>
   )
 })
+ToolForm.displayName = 'Command.ToolForm'
 
 /**
  * Renders the result of a tool execution.
- * Visible when mode is 'result' or 'executing'.
+ *
+ * Visible when mode is `'result'` or `'executing'`.  During execution it shows
+ * a spinner and progress indicator; afterwards it shows the result or error.
+ * Provide `renderResult` for fully custom result rendering.
  */
 const ToolResult = React.forwardRef<HTMLDivElement, ToolResultProps>((props, forwardedRef) => {
   const { children, renderResult, ...etc } = props
@@ -1577,6 +2026,8 @@ const ToolResult = React.forwardRef<HTMLDivElement, ToolResultProps>((props, for
   if (!ak || (ak.state.mode !== 'result' && ak.state.mode !== 'executing')) return null
 
   const { execution, mode } = ak.state
+  const fmt = ak.formatToolName
+  const labels = ak.labels
 
   if (mode === 'executing') {
     const isPlan = !!ak.state.plan
@@ -1585,11 +2036,11 @@ const ToolResult = React.forwardRef<HTMLDivElement, ToolResultProps>((props, for
     return (
       <Primitive.div ref={forwardedRef} {...etc} data-agentk-result="" data-agentk-executing="">
         <div data-agentk-result-loading="">
-          <span data-agentk-spinner="" />
-          <span>Executing {execution?.toolName ? humanizeToolName(execution.toolName) : ''}...</span>
+          <span data-agentk-spinner="" role="status" aria-label="Loading" />
+          <span>{labels.executing} {execution?.toolName ? fmt(execution.toolName) : ''}...</span>
         </div>
         {isPlan && planTotal > 1 && (
-          <span data-agentk-progress="">Step {planStep} of {planTotal}</span>
+          <span data-agentk-progress="">{labels.step} {planStep} {labels.of} {planTotal}</span>
         )}
         {children}
       </Primitive.div>
@@ -1603,7 +2054,7 @@ const ToolResult = React.forwardRef<HTMLDivElement, ToolResultProps>((props, for
       <Primitive.div ref={forwardedRef} {...etc} data-agentk-result="">
         {renderResult(execution)}
         <button data-agentk-result-dismiss="" onClick={() => ak.reset()} type="button">
-          Done
+          {labels.done}
         </button>
         {children}
       </Primitive.div>
@@ -1619,7 +2070,7 @@ const ToolResult = React.forwardRef<HTMLDivElement, ToolResultProps>((props, for
       data-agentk-error={execution.error ? '' : undefined}
     >
       <div data-agentk-result-heading="">
-        {execution.error ? 'Error' : 'Result'}: {execution.toolName}
+        {execution.error ? labels.error : labels.result}: {execution.toolName}
       </div>
       <div data-agentk-result-body="">
         {execution.error ? (
@@ -1636,23 +2087,37 @@ const ToolResult = React.forwardRef<HTMLDivElement, ToolResultProps>((props, for
         </span>
       </div>
       <button data-agentk-result-dismiss="" onClick={() => ak.reset()} type="button">
-        Done
+        {labels.done}
       </button>
       {children}
     </Primitive.div>
   )
 })
+ToolResult.displayName = 'Command.ToolResult'
 
 /**
- * Default form field renderer. Generates appropriate input elements based on JSON Schema type.
+ * Default form field renderer.
+ *
+ * Generates appropriate input elements based on JSON Schema type:
+ * - `enum` → `<select>`
+ * - `number`/`integer` with min+max → `<input type="range">`
+ * - `number`/`integer` without → `<input type="number">`
+ * - `boolean` → `<input type="checkbox">`
+ * - anything else → `<input type="text">`
  */
 const DefaultField = React.forwardRef<HTMLInputElement | HTMLSelectElement, {
   name: string
   schema: ToolInputSchema['properties'][string]
   value: any
   onChange: (value: any) => void
+  error?: string
 }>((props, ref) => {
-  const { name, schema, value, onChange } = props
+  const { name, schema, value, onChange, error } = props
+  const ak = React.useContext(AgentKContext)
+  const fmt = ak?.formatToolName ?? humanizeToolName
+  const ariaLabel = fmt(name)
+  const ariaInvalid = error ? ('true' as const) : undefined
+  const ariaDescribedBy = error ? name + '-error' : undefined
 
   if (schema.enum) {
     return (
@@ -1661,11 +2126,14 @@ const DefaultField = React.forwardRef<HTMLInputElement | HTMLSelectElement, {
         data-agentk-field-select=""
         value={value}
         onChange={(e) => onChange(e.target.value)}
+        aria-label={ariaLabel}
+        aria-invalid={ariaInvalid}
+        aria-describedby={ariaDescribedBy}
       >
         <option value="">Select {name}...</option>
         {schema.enum.map((opt) => (
           <option key={opt} value={opt}>
-            {humanizeToolName(String(opt))}
+            {fmt(String(opt))}
           </option>
         ))}
       </select>
@@ -1683,6 +2151,12 @@ const DefaultField = React.forwardRef<HTMLInputElement | HTMLSelectElement, {
             max={schema.maximum}
             value={value ?? schema.minimum}
             onChange={(e) => onChange(Number(e.target.value))}
+            aria-label={ariaLabel}
+            aria-valuemin={schema.minimum}
+            aria-valuemax={schema.maximum}
+            aria-valuenow={value ?? schema.minimum}
+            aria-invalid={ariaInvalid}
+            aria-describedby={ariaDescribedBy}
           />
           <span data-agentk-field-range-value="">{value ?? schema.minimum}</span>
         </div>
@@ -1698,6 +2172,9 @@ const DefaultField = React.forwardRef<HTMLInputElement | HTMLSelectElement, {
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
         placeholder={name}
+        aria-label={ariaLabel}
+        aria-invalid={ariaInvalid}
+        aria-describedby={ariaDescribedBy}
       />
     )
   }
@@ -1710,6 +2187,9 @@ const DefaultField = React.forwardRef<HTMLInputElement | HTMLSelectElement, {
           type="checkbox"
           checked={Boolean(value)}
           onChange={(e) => onChange(e.target.checked)}
+          aria-label={ariaLabel}
+          aria-invalid={ariaInvalid}
+          aria-describedby={ariaDescribedBy}
         />
         {name}
       </label>
@@ -1725,33 +2205,120 @@ const DefaultField = React.forwardRef<HTMLInputElement | HTMLSelectElement, {
       value={value}
       onChange={(e) => onChange(e.target.value)}
       placeholder={schema.description || name}
+      aria-label={ariaLabel}
+      aria-invalid={ariaInvalid}
+      aria-describedby={ariaDescribedBy}
     />
   )
 })
+DefaultField.displayName = 'DefaultField'
 
 // ─────────────────────────────────────────────────────────────
 // Approval — shows the LLM's proposed plan for human review
 // ─────────────────────────────────────────────────────────────
 
+/**
+ * @internal Focus trap wrapper for the Approval component.
+ * Captures focus on mount and restores it on unmount.
+ */
+function ApprovalFocusTrap({
+  children,
+  containerRef,
+  previousFocusRef,
+  inputId: _inputId,
+}: {
+  children: React.ReactNode
+  containerRef: React.RefObject<HTMLDivElement | null>
+  previousFocusRef: React.MutableRefObject<HTMLElement | null>
+  inputId?: string
+}) {
+  React.useEffect(() => {
+    // Remember the element that had focus before we trapped
+    previousFocusRef.current = document.activeElement as HTMLElement | null
+
+    // Focus the first focusable element in the container
+    const timer = requestAnimationFrame(() => {
+      const container = containerRef.current
+      if (!container) return
+      const focusable = container.querySelector<HTMLElement>(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+      )
+      focusable?.focus()
+    })
+
+    // Handle Tab key to trap focus within the container
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Tab') return
+      const container = containerRef.current
+      if (!container) return
+      const focusables = container.querySelectorAll<HTMLElement>(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+      )
+      if (focusables.length === 0) return
+
+      const first = focusables[0]
+      const last = focusables[focusables.length - 1]
+
+      if (e.shiftKey) {
+        if (document.activeElement === first) {
+          e.preventDefault()
+          last.focus()
+        }
+      } else {
+        if (document.activeElement === last) {
+          e.preventDefault()
+          first.focus()
+        }
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+
+    return () => {
+      cancelAnimationFrame(timer)
+      document.removeEventListener('keydown', handleKeyDown)
+      // Restore focus to the element that had it before
+      previousFocusRef.current?.focus()
+    }
+  }, [])
+
+  return <>{children}</>
+}
+
+/**
+ * Displays the LLM agent's proposed plan for human review.
+ *
+ * Renders in two sub-modes:
+ * - `planning` — shows a spinner while the LLM is thinking.
+ * - `approval` — shows the list of proposed tool calls with Approve / Reject buttons.
+ *
+ * Provide `renderCall` and/or `renderSummary` for custom rendering.
+ */
 type ApprovalProps = Children &
   DivProps & {
+    /** Custom renderer for each planned tool call. */
     renderCall?: (call: AgentKToolCall, index: number) => React.ReactNode
+    /** Custom renderer for the plan summary line. */
     renderSummary?: (plan: AgentKPlan) => React.ReactNode
   }
 
 const Approval = React.forwardRef<HTMLDivElement, ApprovalProps>((props, ref) => {
   const { children, renderCall, renderSummary, ...etc } = props
   const ak = React.useContext(AgentKContext)
+  const containerRef = React.useRef<HTMLDivElement>(null)
+  const previousFocusRef = React.useRef<HTMLElement | null>(null)
   if (!ak) return null
 
   const { state, tools } = ak
+  const fmt = ak.formatToolName
+  const labels = ak.labels
 
   // Show spinner during planning
   if (state.mode === 'planning') {
     return (
       <Primitive.div ref={ref} {...etc} data-agentk-planning="">
-        <div data-agentk-spinner="" />
-        <span data-agentk-planning-text="">Thinking...</span>
+        <div data-agentk-spinner="" role="status" aria-label="Loading" />
+        <span data-agentk-planning-text="">{labels.thinking}</span>
       </Primitive.div>
     )
   }
@@ -1763,50 +2330,68 @@ const Approval = React.forwardRef<HTMLDivElement, ApprovalProps>((props, ref) =>
   // Build a lookup for tool icons
   const toolMap = new Map(tools.map((t) => [t.name, t]))
 
+  // Build summary text using labels
+  const defaultSummary = plan.calls.length === 1
+    ? `1 ${labels.actions.replace(/s$/, '')} ${labels.planned}`
+    : `${plan.calls.length} ${labels.actions} ${labels.planned}`
+
   return (
-    <Primitive.div ref={ref} {...etc} data-agentk-approval="">
-      {children || (
-        <>
-          <div data-agentk-approval-summary="">
-            {renderSummary ? renderSummary(plan) : (
-              <span>{plan.summary || `${plan.calls.length} action${plan.calls.length > 1 ? 's' : ''} planned`}</span>
-            )}
-          </div>
-          <div data-agentk-approval-calls="">
-            {plan.calls.map((call, i) => {
-              const toolDef = toolMap.get(call.toolName)
-              return (
-                <div key={i} data-agentk-approval-call="">
-                  {renderCall ? renderCall(call, i) : (
-                    <>
-                      {toolDef?.icon && <span data-agentk-approval-call-icon="">{toolDef.icon}</span>}
-                      <span data-agentk-approval-call-name="">{humanizeToolName(call.toolName)}</span>
-                      {Object.keys(call.parameters).length > 0 && (
-                        <span data-agentk-approval-call-params="">
-                          {Object.entries(call.parameters).map(([k, v]) => (
-                            <span key={k} data-agentk-approval-param="">
-                              <span data-agentk-approval-param-value="">{String(v)}</span>
-                            </span>
-                          ))}
-                        </span>
-                      )}
-                    </>
-                  )}
-                </div>
-              )
-            })}
-          </div>
-          <div data-agentk-approval-actions="">
-            <button data-agentk-approval-reject="" onClick={() => ak.rejectPlan()}>
-              Reject
-            </button>
-            <button data-agentk-approval-approve="" onClick={() => ak.approvePlan()}>
-              Approve
-            </button>
-          </div>
-        </>
-      )}
-    </Primitive.div>
+    <ApprovalFocusTrap
+      containerRef={containerRef}
+      previousFocusRef={previousFocusRef}
+      inputId={ak.state.mode === 'approval' ? 'agentk-approval-trap' : undefined}
+    >
+      <Primitive.div
+        ref={composeRefs(ref, containerRef)}
+        {...etc}
+        data-agentk-approval=""
+        aria-live="polite"
+        role="region"
+        aria-label="Plan approval"
+      >
+        {children || (
+          <>
+            <div data-agentk-approval-summary="">
+              {renderSummary ? renderSummary(plan) : (
+                <span>{plan.summary || defaultSummary}</span>
+              )}
+            </div>
+            <div data-agentk-approval-calls="">
+              {plan.calls.map((call, i) => {
+                const toolDef = toolMap.get(call.toolName)
+                return (
+                  <div key={i} data-agentk-approval-call="">
+                    {renderCall ? renderCall(call, i) : (
+                      <>
+                        {toolDef?.icon && <span data-agentk-approval-call-icon="">{toolDef.icon}</span>}
+                        <span data-agentk-approval-call-name="">{fmt(call.toolName)}</span>
+                        {Object.keys(call.parameters).length > 0 && (
+                          <span data-agentk-approval-call-params="">
+                            {Object.entries(call.parameters).map(([k, v]) => (
+                              <span key={k} data-agentk-approval-param="">
+                                <span data-agentk-approval-param-value="">{String(v)}</span>
+                              </span>
+                            ))}
+                          </span>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+            <div data-agentk-approval-actions="">
+              <button data-agentk-approval-reject="" onClick={() => ak.rejectPlan()}>
+                {labels.reject}
+              </button>
+              <button data-agentk-approval-approve="" onClick={() => ak.approvePlan()}>
+                {labels.approve}
+              </button>
+            </div>
+          </>
+        )}
+      </Primitive.div>
+    </ApprovalFocusTrap>
   )
 })
 Approval.displayName = 'Command.Approval'
@@ -1815,9 +2400,18 @@ Approval.displayName = 'Command.Approval'
 // Activity Feed — shows running log of agent actions
 // ─────────────────────────────────────────────────────────────
 
+/**
+ * Scrollable log of agent activity (intents, plans, tool calls).
+ *
+ * Hidden during `'approval'` mode so the user can focus on the plan.
+ * Set `maxEntries` to cap how many entries are shown (default 20).
+ * Provide `renderEntry` for fully custom entry rendering.
+ */
 type ActivityFeedProps = Children &
   DivProps & {
+    /** Maximum number of entries to display. @default 20 */
     maxEntries?: number
+    /** Custom renderer for individual activity entries. */
     renderEntry?: (entry: ActivityEntry) => React.ReactNode
   }
 
@@ -1827,6 +2421,14 @@ const ACTIVITY_ICONS: Record<ActivityEntry['type'], string> = {
   tool_start: '⚡',
   tool_complete: '✓',
   tool_error: '✗',
+}
+
+const ACTIVITY_ARIA_LABELS: Record<ActivityEntry['type'], string> = {
+  intent: 'Search intent',
+  plan: 'Plan created',
+  tool_start: 'Tool started',
+  tool_complete: 'Tool completed',
+  tool_error: 'Tool failed',
 }
 
 const ActivityFeed = React.forwardRef<HTMLDivElement, ActivityFeedProps>((props, ref) => {
@@ -1841,13 +2443,14 @@ const ActivityFeed = React.forwardRef<HTMLDivElement, ActivityFeedProps>((props,
   const entries = ak.activityLog.slice(-maxEntries)
   if (entries.length === 0) return null
 
+  const labels = ak.labels
   const completed = entries.filter((e) => e.type === 'tool_complete').length
   const total = ak.state.plan?.calls.length || 0
   const latest = entries[entries.length - 1]
 
   // Single-line status summary
   const statusText = ak.state.mode === 'executing' && total > 0
-    ? `${completed} of ${total} complete`
+    ? `${completed} ${labels.of} ${total} ${labels.complete}`
     : latest?.message || ''
 
   return (
@@ -1877,7 +2480,9 @@ const ActivityFeed = React.forwardRef<HTMLDivElement, ActivityFeedProps>((props,
             >
               {renderEntry ? renderEntry(entry) : (
                 <>
-                  <span data-agentk-activity-icon="">{ACTIVITY_ICONS[entry.type]}</span>
+                  <span data-agentk-activity-icon="" aria-label={ACTIVITY_ARIA_LABELS[entry.type]}>
+                    {ACTIVITY_ICONS[entry.type]}
+                  </span>
                   <span data-agentk-activity-message="">{entry.message}</span>
                 </>
               )}
@@ -1895,8 +2500,21 @@ ActivityFeed.displayName = 'Command.ActivityFeed'
 // ─────────────────────────────────────────────────────────────
 
 /**
- * Discovers WebMCP tools from the browser's navigator.modelContext API.
- * Returns tools that can be passed to Command's tools prop.
+ * Discovers WebMCP tools from the browser's `navigator.modelContext` API.
+ *
+ * Returns an object with:
+ * - `tools` — an array of `AgentKToolDef` discovered from the page.
+ * - `available` — `true` when the WebMCP API is present in the browser.
+ * - `refresh()` — re-scan for tools (e.g. after a page mutation).
+ * - `executeTool(name, params)` — execute a tool via the WebMCP testing API.
+ *
+ * @example
+ * ```tsx
+ * function App() {
+ *   const { tools, available } = useWebMCPTools()
+ *   return <Command tools={tools} />
+ * }
+ * ```
  */
 export function useWebMCPTools() {
   const [tools, setTools] = React.useState<AgentKToolDef[]>([])
@@ -1970,7 +2588,25 @@ const pkg = Object.assign(Command, {
   AgentHint,
 })
 
-// Hook to access AgentK state from within Command tree
+/**
+ * Access the full AgentK state and actions from any component inside
+ * the `<Command>` tree.
+ *
+ * Returns an object with the current state, action dispatchers (`selectTool`,
+ * `execute`, `cancel`, `reset`, `sendIntent`, `approvePlan`, `rejectPlan`),
+ * and derived values like `agentHintVisible`, `labels`, and `formatToolName`.
+ *
+ * @throws {Error} If called outside a `<Command>` provider.
+ *
+ * @example
+ * ```tsx
+ * function MyWidget() {
+ *   const { state, execute, cancel, labels } = useAgentK()
+ *   if (state.mode === 'executing') return <p>{labels.executing}...</p>
+ *   return <button onClick={execute}>Go</button>
+ * }
+ * ```
+ */
 export function useAgentK() {
   const ctx = React.useContext(AgentKContext)
   if (!ctx) throw new Error('useAgentK must be used within a <Command> component')
@@ -2020,6 +2656,7 @@ export type {
   ToolResultProps,
   ApprovalProps,
   ActivityFeedProps,
+  AgentHintProps,
 }
 
 // ─────────────────────────────────────────────────────────────
