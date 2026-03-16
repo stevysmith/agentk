@@ -92,6 +92,7 @@ type AgentKLabels = {
  */
 type ToolInputSchema = {
     type: 'object';
+    description?: string;
     properties: Record<string, {
         type: string;
         description?: string;

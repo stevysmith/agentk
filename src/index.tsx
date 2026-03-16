@@ -141,6 +141,7 @@ const DEFAULT_LABELS: Required<AgentKLabels> = {
  */
 export type ToolInputSchema = {
   type: 'object'
+  description?: string
   properties: Record<
     string,
     {
