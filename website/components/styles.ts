@@ -292,6 +292,7 @@ export const showcaseStyles = `
 
   /* ─── Demo area ─── */
   .demo-area {
+    position: relative;
     margin: 0 auto;
     width: 100%;
     max-width: 640px;
@@ -543,7 +544,7 @@ export const showcaseStyles = `
     height: 1px;
     background: var(--gray6);
     display: block;
-    margin-top: 12px;
+    margin-top: 2px;
     margin-bottom: 12px;
   }
 
@@ -880,6 +881,56 @@ export const showcaseStyles = `
     border-radius: 0 0 8px 8px;
   }
   .raycast-submenu-input::placeholder { color: var(--gray9); }
+
+  /* ─── DevOps theme — teal/green CI/CD accent ─── */
+  .devops-theme [cmdk-item] {
+    border-radius: 0 8px 8px 0;
+    padding-left: 16px;
+  }
+  .devops-theme [cmdk-item][aria-selected="true"]::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    border-radius: 0;
+    background: #0d9488;
+  }
+  .devops-theme [cmdk-item][aria-selected="true"] [data-agentk-tool-icon] {
+    color: #0d9488;
+  }
+  .dark .devops-theme [cmdk-item][aria-selected="true"] [data-agentk-tool-icon] {
+    color: #2dd4bf;
+  }
+  .devops-theme [cmdk-input] {
+    caret-color: #0d9488;
+  }
+
+  /* ─── Smart Home theme — warm orange/amber accent ─── */
+  .smarthome-theme [cmdk-item] {
+    border-radius: 0 8px 8px 0;
+    padding-left: 16px;
+  }
+  .smarthome-theme [cmdk-item][aria-selected="true"]::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    border-radius: 0;
+    background: #f59e0b;
+  }
+  .smarthome-theme [cmdk-item][aria-selected="true"] [data-agentk-tool-icon] {
+    color: #d97706;
+  }
+  .dark .smarthome-theme [cmdk-item][aria-selected="true"] [data-agentk-tool-icon] {
+    color: #fbbf24;
+  }
+  .smarthome-theme [cmdk-input] {
+    caret-color: #f59e0b;
+  }
 
   /* ─── Linear theme — pixel-perfect match of cmdk2 ─── */
   .linear-theme.palette-container {
@@ -1454,6 +1505,44 @@ export const showcaseStyles = `
   .theme-tab-label {
     position: relative;
     z-index: 1;
+  }
+
+  .demo-hint {
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    cursor: pointer;
+    transition: opacity 0.15s ease;
+  }
+
+  .demo-hint:hover .demo-hint-text {
+    color: var(--gray12);
+  }
+
+  .demo-hint:hover .demo-hint-arrow {
+    color: var(--gray11);
+  }
+
+  .demo-hint-arrow {
+    color: var(--gray8);
+    margin-bottom: -4px;
+    overflow: visible;
+    transition: color 0.15s ease;
+  }
+
+  .demo-hint-text {
+    font-family: 'Caveat', 'Segoe Print', 'Comic Sans MS', cursive;
+    font-size: 17px;
+    color: var(--gray9);
+    max-width: 200px;
+    line-height: 1.3;
+    transition: color 0.15s ease;
+    white-space: nowrap;
+  }
+
+  @media (max-width: 1100px) {
+    .demo-hint { display: none; }
   }
 
   .theme-tab-bg {

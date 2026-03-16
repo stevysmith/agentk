@@ -2071,7 +2071,11 @@ const ToolResult = React.forwardRef<HTMLDivElement, ToolResultProps>((props, for
       data-agentk-error={execution.error ? '' : undefined}
     >
       <div data-agentk-result-heading="">
-        {execution.error ? labels.error : labels.result}: {execution.toolName}
+        {execution.error
+          ? `${labels.error}: ${execution.toolName}`
+          : ak.state.plan && ak.state.plan.calls.length > 1
+            ? (ak.state.plan.summary || labels.result)
+            : `${labels.result}: ${fmt(execution.toolName)}`}
       </div>
       <div data-agentk-result-body="">
         {execution.error ? (

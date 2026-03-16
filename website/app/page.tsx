@@ -49,15 +49,64 @@ function highlightCode(code: string): React.ReactNode[] {
 }
 
 // ─────────────────────────────────────────────────────────
+// Demo hint with dynamic arrow positioning
+// ─────────────────────────────────────────────────────────
+
+function DemoHint({ text, onClickHint }: { text: string; onClickHint: () => void }) {
+  const hintRef = useRef<HTMLDivElement>(null)
+  const [offset, setOffset] = useState({ x: 0, y: 0 })
+
+  useEffect(() => {
+    const measure = () => {
+      const palette = document.querySelector('.palette-container')
+      const input = palette?.querySelector('[cmdk-input]')
+      const demoArea = document.querySelector('.demo-area')
+      if (!palette || !input || !demoArea) return
+
+      const paletteRect = palette.getBoundingClientRect()
+      const inputRect = input.getBoundingClientRect()
+      const demoRect = demoArea.getBoundingClientRect()
+
+      setOffset({
+        x: paletteRect.right - demoRect.left + 20,
+        y: inputRect.top - demoRect.top + inputRect.height / 2,
+      })
+    }
+    measure()
+    const t = setTimeout(measure, 200)
+    return () => clearTimeout(t)
+  }, [text])
+
+  return (
+    <motion.div
+      ref={hintRef}
+      className="demo-hint"
+      style={{ left: offset.x, top: offset.y - 25 }}
+      initial={{ opacity: 0, x: 8 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: -8 }}
+      transition={{ duration: 0.25, delay: 0.15 }}
+      onClick={onClickHint}
+    >
+      <svg className="demo-hint-arrow" width="50" height="50" viewBox="0 0 50 50" fill="none">
+        <path d="M46 48 C 38 36, 26 28, 16 22 C 10 18, 6 16, 4 14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" fill="none" strokeDasharray="3 3" />
+        <path d="M4 18 L2 13 L7 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+      </svg>
+      <span className="demo-hint-text">{text}</span>
+    </motion.div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────
 // Theme configuration
 // ─────────────────────────────────────────────────────────
 
 const THEMES = [
-  { id: 'devops', label: 'DevOps', icon: THEME_ICONS.devops, demoUrl: '/devops', demoLabel: 'Try the DevOps demo' },
-  { id: 'smarthome', label: 'Smart Home', icon: THEME_ICONS.smarthome, demoUrl: '/smart-home', demoLabel: 'Try the Smart Home demo' },
-  { id: 'linear', label: 'Linear', icon: THEME_ICONS.linear, demoUrl: '/linear', demoLabel: 'Try the Linear demo' },
-  { id: 'shop', label: 'Shop', icon: THEME_ICONS.shop, demoUrl: '/shop', demoLabel: 'Try the Shop demo' },
-  { id: 'raycast', label: 'Raycast', icon: THEME_ICONS.raycast, demoUrl: '/docs', demoLabel: 'Try the API Docs demo' },
+  { id: 'devops', label: 'DevOps', hint: 'Deploy staging from main branch', icon: THEME_ICONS.devops, demoUrl: '/devops', demoLabel: 'Try the DevOps demo' },
+  { id: 'smarthome', label: 'Smart Home', hint: 'Set up a romantic evening', icon: THEME_ICONS.smarthome, demoUrl: '/smart-home', demoLabel: 'Try the Smart Home demo' },
+  { id: 'linear', label: 'Linear', hint: 'Assign to me and close the ticket', icon: THEME_ICONS.linear, demoUrl: '/linear', demoLabel: 'Try the Linear demo' },
+  { id: 'shop', label: 'Shop', hint: 'Something casual under $100', icon: THEME_ICONS.shop, demoUrl: '/shop', demoLabel: 'Try the Shop demo' },
+  { id: 'raycast', label: 'Raycast', hint: '', icon: THEME_ICONS.raycast, demoUrl: '/docs', demoLabel: 'Try the API Docs demo' },
 ] as const
 
 type ThemeId = (typeof THEMES)[number]['id']
@@ -356,6 +405,19 @@ export default function ShowcasePage() {
                 <ActiveThemeComponent />
               </motion.div>
             </AnimatePresence>
+            {THEMES.find(t => t.id === activeTheme)!.hint && <DemoHint
+              key={`hint-${activeTheme}`}
+              text={THEMES.find(t => t.id === activeTheme)!.hint}
+              onClickHint={() => {
+                const input = document.querySelector('.palette-container [cmdk-input]') as HTMLInputElement
+                if (input) {
+                  const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set
+                  nativeInputValueSetter?.call(input, THEMES.find(t => t.id === activeTheme)!.hint)
+                  input.dispatchEvent(new Event('input', { bubbles: true }))
+                  input.focus()
+                }
+              }}
+            />}
           </motion.div>
 
           {/* ─── Theme Switcher ─── */}

@@ -696,12 +696,11 @@ body { font-family: var(--font); -webkit-font-smoothing: antialiased; min-height
   content: '';
   position: absolute;
   left: 0;
-  top: 50%;
-  transform: translateY(-50%);
+  top: 0;
+  bottom: 0;
   width: 3px;
-  height: 16px;
   background: var(--accent);
-  border-radius: 0 2px 2px 0;
+  border-radius: 0;
 }
 
 [cmdk-item]:active {

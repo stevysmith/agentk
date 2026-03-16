@@ -124,11 +124,13 @@ const smartHomeTools: AgentKToolDef[] = [
 
 const mockSmartHomeAgent: AgentKProvider = async (prompt) => {
   await new Promise((r) => setTimeout(r, 500))
+  completedActions.length = 0
 
   const q = prompt.toLowerCase()
+  let result
 
   if (q.includes('movie') || q.includes('film')) {
-    return {
+    result = {
       calls: [
         { toolName: 'set_brightness', parameters: { level: 20 } },
         { toolName: 'close_blinds', parameters: { room: 'living room' } },
@@ -136,10 +138,8 @@ const mockSmartHomeAgent: AgentKProvider = async (prompt) => {
       ],
       summary: 'Setting the mood for movie night: dimming lights, closing blinds, and playing ambient music.',
     }
-  }
-
-  if (q.includes('morning') || q.includes('wake')) {
-    return {
+  } else if (q.includes('morning') || q.includes('wake')) {
+    result = {
       calls: [
         { toolName: 'set_brightness', parameters: { level: 80 } },
         { toolName: 'set_temperature', parameters: { temp: 72 } },
@@ -147,20 +147,27 @@ const mockSmartHomeAgent: AgentKProvider = async (prompt) => {
       ],
       summary: 'Good morning! Brightening lights, warming up, and playing your morning playlist.',
     }
-  }
-
-  if (q.includes('sleep') || q.includes('night') || q.includes('bed')) {
-    return {
+  } else if (q.includes('romantic') || q.includes('date') || q.includes('evening')) {
+    result = {
       calls: [
-        { toolName: 'set_brightness', parameters: { level: 0 } },
-        { toolName: 'set_temperature', parameters: { temp: 68 } },
+        { toolName: 'set_brightness', parameters: { room: 'Living Room', level: 15 } },
+        { toolName: 'set_temperature', parameters: { temp: 72, mode: 'Auto' } },
+        { toolName: 'close_blinds', parameters: { room: 'All Rooms' } },
+        { toolName: 'play_media', parameters: { source: 'Jazz', speaker: 'Living Room' } },
       ],
-      summary: 'Goodnight! Turning off lights and setting a comfortable sleeping temperature.',
+      summary: 'Setting up a romantic evening: dimming lights to 15%, closing all blinds, warming to 72°F, and playing jazz.',
     }
-  }
-
-  if (q.includes('party')) {
-    return {
+  } else if (q.includes('sleep') || q.includes('night') || q.includes('bed') || q.includes('lock')) {
+    result = {
+      calls: [
+        { toolName: 'set_brightness', parameters: { room: 'All Rooms', level: 0 } },
+        { toolName: 'set_temperature', parameters: { temp: 68 } },
+        { toolName: 'close_blinds', parameters: { room: 'All Rooms' } },
+      ],
+      summary: 'Locking up for the night: lights off, blinds closed, temperature set to 68°F.',
+    }
+  } else if (q.includes('party')) {
+    result = {
       calls: [
         { toolName: 'set_scene', parameters: { scene: 'party' } },
         { toolName: 'set_brightness', parameters: { level: 90 } },
@@ -168,36 +175,57 @@ const mockSmartHomeAgent: AgentKProvider = async (prompt) => {
       ],
       summary: 'Party mode activated! Setting scene, cranking lights, and playing the party mix.',
     }
+  } else {
+    result = {
+      calls: [{ toolName: 'set_scene', parameters: { scene: prompt.trim() } }],
+      summary: `Setting scene based on your request.`,
+    }
   }
 
-  // Default: set a generic scene
-  return {
-    calls: [{ toolName: 'set_scene', parameters: { scene: prompt.trim() } }],
-    summary: `Setting scene based on your request.`,
-  }
+  pendingCount = result.calls.length
+  return result
 }
 
 // ─────────────────────────────────────────────────────────
-// Mock tool executor (400ms delay per tool, meaningful results)
+// Mock tool executor (400ms delay per tool, accumulates results)
 // ─────────────────────────────────────────────────────────
+
+const completedActions: string[] = []
+let pendingCount = 0
+
+function describeAction(toolName: string, params: Record<string, any>): string {
+  switch (toolName) {
+    case 'set_brightness':
+      return `💡 Lights ${params.level === 0 ? 'off' : `dimmed to ${params.level}%`}${params.room ? ` in ${params.room}` : ''}`
+    case 'set_temperature':
+      return `🌡️ Temperature set to ${params.temp}°F${params.mode ? ` (${params.mode})` : ''}`
+    case 'close_blinds':
+      return `🪟 Blinds closed${params.room ? ` in ${params.room}` : ''}`
+    case 'play_media':
+      return `🎵 Playing ${params.source || 'music'}${params.speaker ? ` in ${params.speaker}` : ''}`
+    case 'set_scene':
+      return `✨ Scene "${params.scene}" activated`
+    default:
+      return `${toolName} executed`
+  }
+}
 
 const handleToolExecute = async (toolName: string, params: Record<string, any>) => {
   await new Promise((r) => setTimeout(r, 400))
 
-  switch (toolName) {
-    case 'set_brightness':
-      return { message: `Lights set to ${params.level}%` }
-    case 'set_temperature':
-      return { message: `Temperature set to ${params.temp}\u00B0F` }
-    case 'close_blinds':
-      return { message: `Blinds closed in ${params.room || 'all rooms'}` }
-    case 'play_media':
-      return { message: `Now playing: ${params.source || 'default playlist'}` }
-    case 'set_scene':
-      return { message: `Scene "${params.scene}" activated` }
-    default:
-      return { message: `${toolName} executed` }
+  const action = describeAction(toolName, params)
+  completedActions.push(action)
+  pendingCount--
+
+  if (pendingCount <= 0) {
+    const actions = [...completedActions]
+    completedActions.length = 0
+    const result: Record<string, string> = { scene: 'Romantic Evening' }
+    actions.forEach((a, i) => { result[`step_${i + 1}`] = a })
+    return result
   }
+
+  return { status: 'ok', action }
 }
 
 // ─────────────────────────────────────────────────────────
