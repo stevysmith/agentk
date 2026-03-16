@@ -53,11 +53,11 @@ function highlightCode(code: string): React.ReactNode[] {
 // ─────────────────────────────────────────────────────────
 
 const THEMES = [
-  { id: 'raycast', label: 'Raycast', icon: THEME_ICONS.raycast, demoUrl: '/docs', demoLabel: 'Try the API Docs demo' },
-  { id: 'linear', label: 'Linear', icon: THEME_ICONS.linear, demoUrl: '/linear', demoLabel: 'Try the Linear demo' },
-  { id: 'smarthome', label: 'Smart Home', icon: THEME_ICONS.smarthome, demoUrl: '/smart-home', demoLabel: 'Try the Smart Home demo' },
   { id: 'devops', label: 'DevOps', icon: THEME_ICONS.devops, demoUrl: '/devops', demoLabel: 'Try the DevOps demo' },
+  { id: 'smarthome', label: 'Smart Home', icon: THEME_ICONS.smarthome, demoUrl: '/smart-home', demoLabel: 'Try the Smart Home demo' },
+  { id: 'linear', label: 'Linear', icon: THEME_ICONS.linear, demoUrl: '/linear', demoLabel: 'Try the Linear demo' },
   { id: 'shop', label: 'Shop', icon: THEME_ICONS.shop, demoUrl: '/shop', demoLabel: 'Try the Shop demo' },
+  { id: 'raycast', label: 'Raycast', icon: THEME_ICONS.raycast, demoUrl: '/docs', demoLabel: 'Try the API Docs demo' },
 ] as const
 
 type ThemeId = (typeof THEMES)[number]['id']
@@ -197,7 +197,7 @@ const THEME_CODE: Record<ThemeId, { code: string; highlights: Record<string, 'kw
 export default function ShowcasePage() {
   const [copied, setCopied] = useState(false)
   const [mounted, setMounted] = useState(false)
-  const [activeTheme, setActiveTheme] = useState<ThemeId>('raycast')
+  const [activeTheme, setActiveTheme] = useState<ThemeId>('devops')
   const [dark, setDark] = useState(false)
   const [codeCopied, setCodeCopied] = useState(false)
   const [showArrowHint, setShowArrowHint] = useState(false)
