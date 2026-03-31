@@ -164,21 +164,21 @@ const handleToolExecute = async (toolName: string, params: Record<string, any>) 
 
   switch (toolName) {
     case 'assign_to_me':
-      return { ok: true, message: 'Assigned to you' }
+      return 'Assigned to you'
     case 'assign_to':
-      return { ok: true, message: `Assigned to ${params.assignee}` }
+      return `Assigned to ${params.assignee}`
     case 'change_status':
-      return { ok: true, message: `Status changed to ${params.status}` }
+      return `Status changed to ${params.status}`
     case 'change_priority':
-      return { ok: true, message: `Priority set to ${params.priority}` }
+      return `Priority set to ${params.priority}`
     case 'change_labels':
-      return { ok: true, message: `Label "${params.label}" added` }
+      return `Label "${params.label}" added`
     case 'remove_label':
-      return { ok: true, message: 'Label removed' }
+      return 'Label removed'
     case 'set_due_date':
-      return { ok: true, message: `Due date set to ${params.date || 'today'}` }
+      return `Due date set to ${params.date || 'today'}`
     default:
-      return { ok: true, message: `${toolName} executed` }
+      return `${toolName} executed`
   }
 }
 
@@ -202,19 +202,31 @@ export default function LinearTheme() {
         <div className="linear-badge">Issue - FUN-343</div>
         <Command.Input autoFocus placeholder="Type a command or search..." />
         <Command.List>
-          {linearTools.map((t) => (
-            <Command.Tool key={t.name} tool={t}>
-              <span className="linear-icon">{t.icon}</span>
-              {t.label || t.name}
-              {LINEAR_SHORTCUTS[t.name] && (
-                <div className="linear-shortcuts">
-                  {LINEAR_SHORTCUTS[t.name].map((key) => (
-                    <kbd key={key} className="linear-kbd">{key}</kbd>
-                  ))}
-                </div>
-              )}
-            </Command.Tool>
-          ))}
+          <Command.Group heading="Quick actions">
+            <Command.IntentTrigger query="assign this to me and mark as done">
+              <span className="linear-icon">{LinearIcons.assignToMe}</span>
+              Assign to me &amp; close
+            </Command.IntentTrigger>
+            <Command.IntentTrigger query="mark this as urgent priority">
+              <span className="linear-icon">{LinearIcons.changePriority}</span>
+              Set urgent priority
+            </Command.IntentTrigger>
+          </Command.Group>
+          <Command.Group heading="All actions">
+            {linearTools.map((t) => (
+              <Command.Tool key={t.name} tool={t}>
+                <span className="linear-icon">{t.icon}</span>
+                {t.label || t.name}
+                {LINEAR_SHORTCUTS[t.name] && (
+                  <div className="linear-shortcuts">
+                    {LINEAR_SHORTCUTS[t.name].map((key) => (
+                      <kbd key={key} className="linear-kbd">{key}</kbd>
+                    ))}
+                  </div>
+                )}
+              </Command.Tool>
+            ))}
+          </Command.Group>
           <Command.Empty>No results found.</Command.Empty>
           <Command.AgentHint />
         </Command.List>

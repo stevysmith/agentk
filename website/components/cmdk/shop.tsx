@@ -73,57 +73,33 @@ const handleToolExecute = async (toolName: string, params: Record<string, any>) 
 
     const q = (params.query || '').toLowerCase()
 
+    // Return friendly strings — agentk renders these as <span> (not <pre>)
     if (q.includes('dress')) {
-      return {
-        products: [
-          { name: 'Floral Midi Dress', price: '$89', description: 'Lightweight floral print, perfect for garden weddings' },
-          { name: 'Satin Wrap Dress', price: '$124', description: 'Elegant satin with adjustable wrap tie' },
-          { name: 'Lace A-Line Dress', price: '$156', description: 'Classic lace overlay with scalloped hem' },
-        ],
-      }
+      return 'Found 3 dresses: Floral Midi Dress ($89), Satin Wrap Dress ($124), Lace A-Line Dress ($156)'
     }
 
     if (q.includes('shoe')) {
-      return {
-        products: [
-          { name: 'Leather Block Heels', price: '$98', description: 'Comfortable 2-inch block heel in nude leather' },
-          { name: 'Strappy Sandals', price: '$74', description: 'Minimalist strappy design, gold hardware' },
-          { name: 'Suede Ankle Boots', price: '$145', description: 'Soft suede with side zip closure' },
-        ],
-      }
+      return 'Found 3 shoes: Leather Block Heels ($98), Strappy Sandals ($74), Suede Ankle Boots ($145)'
     }
 
     if (q.includes('jacket') || q.includes('coat')) {
-      return {
-        products: [
-          { name: 'Wool Blend Overcoat', price: '$189', description: 'Double-breasted, fully lined wool blend' },
-          { name: 'Quilted Puffer Jacket', price: '$134', description: 'Lightweight warmth with recycled fill' },
-          { name: 'Leather Moto Jacket', price: '$210', description: 'Classic fit with asymmetric zip' },
-        ],
-      }
+      return 'Found 3 outerwear: Wool Blend Overcoat ($189), Quilted Puffer Jacket ($134), Leather Moto Jacket ($210)'
     }
 
-    return {
-      products: [
-        { name: 'Cotton Crew Tee', price: '$34', description: 'Essential relaxed-fit cotton tee' },
-        { name: 'High-Rise Wide Leg Pants', price: '$88', description: 'Tailored wide leg with pressed crease' },
-        { name: 'Cashmere V-Neck Sweater', price: '$165', description: 'Ultra-soft cashmere in 12 colors' },
-      ],
-    }
+    return 'Found 3 items: Cotton Crew Tee ($34), High-Rise Wide Leg Pants ($88), Cashmere V-Neck Sweater ($165)'
   }
 
-  // Other tools — generic success
   await new Promise((r) => setTimeout(r, 400))
 
   switch (toolName) {
     case 'filter_results':
-      return { ok: true, message: `Filtered by ${params.category || 'all'}, max $${params.maxPrice || '∞'}` }
+      return `Filtered by ${params.category || 'all'}, max $${params.maxPrice || '∞'}`
     case 'get_recommendations':
-      return { ok: true, message: `Recommendations based on "${params.based_on}"` }
+      return `Recommendations based on "${params.based_on}"`
     case 'add_to_cart':
-      return { ok: true, message: `Added ${params.quantity || 1} item(s) to cart` }
+      return `Added ${params.quantity || 1} item(s) to cart`
     default:
-      return { ok: true, message: `${toolName} executed` }
+      return `${toolName} executed`
   }
 }
 

@@ -336,8 +336,14 @@ type CommandProps = Children &
     // AgentK extensions
     /** Tool definitions to register in the palette */
     tools?: AgentKToolDef[]
-    /** Execute a tool. If omitted, uses WebMCP navigator.modelContextTesting.executeTool */
-    onToolExecute?: (toolName: string, parameters: Record<string, any>, signal?: AbortSignal) => Promise<any>
+    /**
+     * Execute a tool. If omitted, uses WebMCP navigator.modelContextTesting.executeTool.
+     *
+     * Return value determines how the result is rendered:
+     * - `string` — displayed as plain text
+     * - `Record<string, unknown>` — displayed as formatted JSON
+     */
+    onToolExecute?: (toolName: string, parameters: Record<string, any>, signal?: AbortSignal) => Promise<string | Record<string, unknown>>
     /** Called when a tool execution completes */
     onToolResult?: (toolName: string, result: any) => void
     /** Called when a tool execution fails */
@@ -1715,8 +1721,31 @@ const AgentHint = React.forwardRef<HTMLDivElement, AgentHintProps>((props, forwa
   const ak = React.useContext(AgentKContext)
   const search = useCmdk((state) => state.search)
   if (!ak?.agentHintVisible) return null
+
+  const handleActivate = () => {
+    const query = search?.trim()
+    if (query) ak.sendIntent(query)
+  }
+
   return (
-    <Primitive.div ref={forwardedRef} {...props} data-agentk-agent-hint="" role="status" aria-live="polite">
+    <Primitive.div
+      ref={forwardedRef}
+      {...props}
+      data-agentk-agent-hint=""
+      role="button"
+      tabIndex={0}
+      aria-label={`${ak.labels.askAgent}: "${search}"`}
+      onClick={(e) => {
+        props.onClick?.(e)
+        if (!e.defaultPrevented) handleActivate()
+      }}
+      onKeyDown={(e: React.KeyboardEvent) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          handleActivate()
+        }
+      }}
+    >
       {props.children || (
         <>
           <div data-agentk-agent-hint-icon="">
@@ -1735,6 +1764,39 @@ const AgentHint = React.forwardRef<HTMLDivElement, AgentHintProps>((props, forwa
   )
 })
 AgentHint.displayName = 'Command.AgentHint'
+
+/**
+ * A `Command.Item` that triggers `sendIntent` with a predetermined query when selected.
+ * Gets the same styling as other items in the list — consistent font, padding, hover state.
+ * Must be rendered inside a `<Command.List>`.
+ *
+ * @example
+ * ```tsx
+ * <Command.IntentTrigger query="summarise this page">
+ *   Summarise
+ * </Command.IntentTrigger>
+ * ```
+ */
+type IntentTriggerProps = Children &
+  Omit<ItemProps, 'onSelect' | 'value'> & {
+    /** The intent string to send when selected. */
+    query: string
+  }
+const IntentTrigger = React.forwardRef<HTMLDivElement, IntentTriggerProps>((props, forwardedRef) => {
+  const { query, ...etc } = props
+  const ak = React.useContext(AgentKContext)
+
+  return (
+    <Item
+      ref={forwardedRef}
+      {...etc}
+      value={query}
+      data-agentk-intent-trigger=""
+      onSelect={() => ak?.sendIntent(query)}
+    />
+  )
+})
+IntentTrigger.displayName = 'Command.IntentTrigger'
 
 const Loading = React.forwardRef<HTMLDivElement, LoadingProps>((props, forwardedRef) => {
   const { progress, children, label = 'Loading...', ...etc } = props
@@ -2080,9 +2142,11 @@ const ToolResult = React.forwardRef<HTMLDivElement, ToolResultProps>((props, for
       <div data-agentk-result-body="">
         {execution.error ? (
           <pre data-agentk-result-error="">{execution.error}</pre>
+        ) : typeof execution.result === 'string' ? (
+          <span data-agentk-result-data="">{execution.result}</span>
         ) : (
           <pre data-agentk-result-data="">
-            {typeof execution.result === 'string' ? execution.result : JSON.stringify(execution.result, null, 2)}
+            {JSON.stringify(execution.result, null, 2)}
           </pre>
         )}
       </div>
@@ -2591,6 +2655,7 @@ const pkg = Object.assign(Command, {
   Approval,
   ActivityFeed,
   AgentHint,
+  IntentTrigger,
 })
 
 /**
@@ -2640,6 +2705,7 @@ export { ToolResult as CommandToolResult }
 export { Approval as CommandApproval }
 export { ActivityFeed as CommandActivityFeed }
 export { AgentHint as CommandAgentHint }
+export { IntentTrigger as CommandIntentTrigger }
 
 // Re-export provider types
 export type { AgentKAgentConfig, AgentKPlan, AgentKToolCall, AgentKProvider } from './providers'
@@ -2662,6 +2728,7 @@ export type {
   ApprovalProps,
   ActivityFeedProps,
   AgentHintProps,
+  IntentTriggerProps,
 }
 
 // ─────────────────────────────────────────────────────────────

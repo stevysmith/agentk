@@ -110,7 +110,7 @@ Root component. Inherits the full [cmdk](https://github.com/pacocoursey/cmdk) AP
 | Prop | Type | Description |
 |------|------|-------------|
 | `tools` | `AgentKToolDef[]` | Tool definitions to register in the palette |
-| `onToolExecute` | `(name, params) => Promise<any>` | Called when a tool is executed |
+| `onToolExecute` | `(name, params) => Promise<string \| Record>` | Called when a tool is executed. Return a string for text display, an object for JSON. |
 | `onToolResult` | `(name, result) => void` | Called after successful execution |
 | `onToolError` | `(name, error) => void` | Called on execution failure |
 | `onModeChange` | `(mode) => void` | Called when mode changes |
@@ -120,6 +120,19 @@ Root component. Inherits the full [cmdk](https://github.com/pacocoursey/cmdk) AP
 | `onAgentReject` | `(plan) => void` | Called when user rejects a plan |
 
 All standard cmdk props (`value`, `onValueChange`, `filter`, `shouldFilter`, `loop`, `label`) are also supported.
+
+The root element exposes `data-agentk-mode` reflecting the current state machine mode. Use it for mode-aware styling:
+
+```css
+/* Hide tool list when a form, result, or execution is active */
+[data-agentk-mode="form"] [cmdk-list]      { display: none; }
+[data-agentk-mode="executing"] [cmdk-list]  { display: none; }
+[data-agentk-mode="result"] [cmdk-list]     { display: none; }
+[data-agentk-mode="planning"] [cmdk-list]   { display: none; }
+[data-agentk-mode="approval"] [cmdk-list]   { display: none; }
+```
+
+Possible values: `browse`, `form`, `executing`, `result`, `planning`, `approval`. Works alongside `data-agentk-entering` and `data-agentk-exiting` for transition animations.
 
 ### Dialog `[cmdk-dialog]` `[cmdk-overlay]`
 
@@ -155,8 +168,20 @@ Contains Tool items and groups. Animate height using the `--cmdk-list-height` CS
 Renders a selectable tool item. Selecting it transitions to the form view.
 
 ```tsx
+// Default rendering: icon + name + description
 <Command.Tool tool={tool} />
+
+// Custom rendering: children fully replace the default layout
+<Command.Tool tool={tool}>
+  <MyCustomIcon />
+  <div>
+    <strong>{tool.label}</strong>
+    <p>{tool.description}</p>
+  </div>
+</Command.Tool>
 ```
+
+When children are omitted, the default layout renders `data-agentk-tool-icon`, `data-agentk-tool-name`, and `data-agentk-tool-description` elements for styling. When children are provided, only your children render.
 
 The `tool` prop is an `AgentKToolDef`:
 
@@ -212,6 +237,18 @@ Schema type mapping:
 
 Displays the result after tool execution. Renders when mode is `result`.
 
+The return value of `onToolExecute` controls what is displayed:
+
+```tsx
+onToolExecute={async (name, params) => {
+  const data = await myApi(name, params);
+  // String → rendered as text in <span data-agentk-result-data="">
+  return `Found ${data.length} results`;
+  // Object → rendered as formatted JSON in <pre data-agentk-result-data="">
+  // return { count: data.length, items: data };
+}}
+```
+
 ```tsx
 // Default display
 <Command.ToolResult />
@@ -243,7 +280,7 @@ type ToolExecution = {
 
 ### AgentHint `[data-agentk-agent-hint]`
 
-Appears when the search query doesn't match any tool but an agent is configured. Prompts the user to press Enter to send the query to the LLM.
+Appears when the search query doesn't match any tool but an agent is configured. Interactive — clicking, pressing Enter, or pressing Space triggers `sendIntent` with the current search query. Renders with `role="button"` and `tabIndex={0}` for accessibility.
 
 ```tsx
 // Default: "Ask the agent" with sparkle icon
@@ -287,6 +324,20 @@ Shows a timeline of agent activity: intent detection, planning, tool execution, 
 ```tsx
 <Command.ActivityFeed maxEntries={20} />
 ```
+
+### IntentTrigger `[data-agentk-intent-trigger]`
+
+A `Command.Item` that triggers `sendIntent` when selected, instead of the default tool-selection behaviour. Renders identically to other items — same styling, same keyboard navigation.
+
+```tsx
+<Command.IntentTrigger query="summer programs in europe">
+  Search Europe
+</Command.IntentTrigger>
+```
+
+Must be rendered inside a `Command.List`. Style with `[data-agentk-intent-trigger]`.
+
+**Note:** Since `IntentTrigger` is a `Command.Item`, it counts as a matching item for filtering. If you want `AgentHint` to appear when the user types a custom query, place IntentTrigger items alongside other items so they get filtered out by cmdk's fuzzy matching. For agent-only search (no items), use `AgentHint` directly without IntentTrigger.
 
 ### Empty `[cmdk-empty]`
 
@@ -422,6 +473,49 @@ useEffect(() => {
 ```
 
 Define once, use everywhere — the same tool definitions power the palette UI, the agent, and WebMCP discovery.
+
+## Recipes
+
+### Consumer search (agent-only, no tool list)
+
+For customer-facing search where users type natural language and get results — no tool browsing needed:
+
+```tsx
+<Command.Dialog
+  open={open}
+  onOpenChange={setOpen}
+  tools={tools}
+  onToolExecute={handleExecute}
+  agent={{ provider: 'anthropic', endpoint: '/api/agent' }}
+>
+  <Command.Input placeholder="What are you looking for?" />
+  <Command.List>
+    {/* No Command.Tool items — agent-only */}
+    <Command.AgentHint />
+    <Command.Empty>Type to search with AI</Command.Empty>
+  </Command.List>
+  <Command.ToolResult />
+</Command.Dialog>
+```
+
+Use `data-agentk-mode` to hide the list during execution:
+
+```css
+[data-agentk-mode="executing"] [cmdk-list] { display: none; }
+[data-agentk-mode="result"] [cmdk-list]    { display: none; }
+```
+
+Add suggested queries with `IntentTrigger`:
+
+```tsx
+<Command.List>
+  <Command.Group heading="Suggestions">
+    <Command.IntentTrigger query="popular items">Popular items</Command.IntentTrigger>
+    <Command.IntentTrigger query="deals under $50">Deals under $50</Command.IntentTrigger>
+  </Command.Group>
+  <Command.AgentHint />
+</Command.List>
+```
 
 ## FAQ
 

@@ -255,8 +255,14 @@ type CommandProps = Children & DivProps & {
     onEmpty?: (search: string) => void;
     /** Tool definitions to register in the palette */
     tools?: AgentKToolDef[];
-    /** Execute a tool. If omitted, uses WebMCP navigator.modelContextTesting.executeTool */
-    onToolExecute?: (toolName: string, parameters: Record<string, any>, signal?: AbortSignal) => Promise<any>;
+    /**
+     * Execute a tool. If omitted, uses WebMCP navigator.modelContextTesting.executeTool.
+     *
+     * Return value determines how the result is rendered:
+     * - `string` — displayed as plain text
+     * - `Record<string, unknown>` — displayed as formatted JSON
+     */
+    onToolExecute?: (toolName: string, parameters: Record<string, any>, signal?: AbortSignal) => Promise<string | Record<string, unknown>>;
     /** Called when a tool execution completes */
     onToolResult?: (toolName: string, result: any) => void;
     /** Called when a tool execution fails */
@@ -348,8 +354,14 @@ declare const Command: React.ForwardRefExoticComponent<Children & Omit<Omit<Reac
     onEmpty?: (search: string) => void;
     /** Tool definitions to register in the palette */
     tools?: AgentKToolDef[];
-    /** Execute a tool. If omitted, uses WebMCP navigator.modelContextTesting.executeTool */
-    onToolExecute?: (toolName: string, parameters: Record<string, any>, signal?: AbortSignal) => Promise<any>;
+    /**
+     * Execute a tool. If omitted, uses WebMCP navigator.modelContextTesting.executeTool.
+     *
+     * Return value determines how the result is rendered:
+     * - `string` — displayed as plain text
+     * - `Record<string, unknown>` — displayed as formatted JSON
+     */
+    onToolExecute?: (toolName: string, parameters: Record<string, any>, signal?: AbortSignal) => Promise<string | Record<string, unknown>>;
     /** Called when a tool execution completes */
     onToolResult?: (toolName: string, result: any) => void;
     /** Called when a tool execution fails */
@@ -394,7 +406,7 @@ declare const Item: React.ForwardRefExoticComponent<Children & Omit<Omit<Omit<Re
     ref?: ((instance: HTMLDivElement | null) => void | React.DO_NOT_USE_OR_YOU_WILL_BE_FIRED_CALLBACK_REF_RETURN_VALUES[keyof React.DO_NOT_USE_OR_YOU_WILL_BE_FIRED_CALLBACK_REF_RETURN_VALUES]) | React.RefObject<HTMLDivElement> | null | undefined;
 } & {
     asChild?: boolean;
-}, "ref">, "onSelect" | "disabled" | "value"> & {
+}, "ref">, "value" | "onSelect" | "disabled"> & {
     disabled?: boolean;
     onSelect?: (value: string) => void;
     value?: string;
@@ -421,7 +433,7 @@ declare const Input: React.ForwardRefExoticComponent<Omit<Omit<Omit<React.Detail
     ref?: ((instance: HTMLInputElement | null) => void | React.DO_NOT_USE_OR_YOU_WILL_BE_FIRED_CALLBACK_REF_RETURN_VALUES[keyof React.DO_NOT_USE_OR_YOU_WILL_BE_FIRED_CALLBACK_REF_RETURN_VALUES]) | React.RefObject<HTMLInputElement> | null | undefined;
 } & {
     asChild?: boolean;
-}, "ref">, "onChange" | "value" | "type"> & {
+}, "ref">, "value" | "onChange" | "type"> & {
     value?: string;
     onValueChange?: (search: string) => void;
 } & React.RefAttributes<HTMLInputElement>>;
@@ -467,8 +479,14 @@ declare const Dialog: React.ForwardRefExoticComponent<RadixDialog.DialogProps & 
     onEmpty?: (search: string) => void;
     /** Tool definitions to register in the palette */
     tools?: AgentKToolDef[];
-    /** Execute a tool. If omitted, uses WebMCP navigator.modelContextTesting.executeTool */
-    onToolExecute?: (toolName: string, parameters: Record<string, any>, signal?: AbortSignal) => Promise<any>;
+    /**
+     * Execute a tool. If omitted, uses WebMCP navigator.modelContextTesting.executeTool.
+     *
+     * Return value determines how the result is rendered:
+     * - `string` — displayed as plain text
+     * - `Record<string, unknown>` — displayed as formatted JSON
+     */
+    onToolExecute?: (toolName: string, parameters: Record<string, any>, signal?: AbortSignal) => Promise<string | Record<string, unknown>>;
     /** Called when a tool execution completes */
     onToolResult?: (toolName: string, result: any) => void;
     /** Called when a tool execution fails */
@@ -531,6 +549,26 @@ declare const AgentHint: React.ForwardRefExoticComponent<Children & Omit<Omit<Re
 } & {
     asChild?: boolean;
 }, "ref"> & React.RefAttributes<HTMLDivElement>>;
+/**
+ * A `Command.Item` that triggers `sendIntent` with a predetermined query when selected.
+ * Gets the same styling as other items in the list — consistent font, padding, hover state.
+ * Must be rendered inside a `<Command.List>`.
+ *
+ * @example
+ * ```tsx
+ * <Command.IntentTrigger query="summarise this page">
+ *   Summarise
+ * </Command.IntentTrigger>
+ * ```
+ */
+type IntentTriggerProps = Children & Omit<ItemProps, 'onSelect' | 'value'> & {
+    /** The intent string to send when selected. */
+    query: string;
+};
+declare const IntentTrigger: React.ForwardRefExoticComponent<Children & Omit<ItemProps, "value" | "onSelect"> & {
+    /** The intent string to send when selected. */
+    query: string;
+} & React.RefAttributes<HTMLDivElement>>;
 declare const Loading: React.ForwardRefExoticComponent<Children & Omit<Omit<React.DetailedHTMLProps<React.HTMLAttributes<HTMLDivElement>, HTMLDivElement>, "ref"> & {
     ref?: ((instance: HTMLDivElement | null) => void | React.DO_NOT_USE_OR_YOU_WILL_BE_FIRED_CALLBACK_REF_RETURN_VALUES[keyof React.DO_NOT_USE_OR_YOU_WILL_BE_FIRED_CALLBACK_REF_RETURN_VALUES]) | React.RefObject<HTMLDivElement> | null | undefined;
 } & {
@@ -550,7 +588,7 @@ declare const ToolItem: React.ForwardRefExoticComponent<Children & Omit<Omit<Omi
     ref?: ((instance: HTMLDivElement | null) => void | React.DO_NOT_USE_OR_YOU_WILL_BE_FIRED_CALLBACK_REF_RETURN_VALUES[keyof React.DO_NOT_USE_OR_YOU_WILL_BE_FIRED_CALLBACK_REF_RETURN_VALUES]) | React.RefObject<HTMLDivElement> | null | undefined;
 } & {
     asChild?: boolean;
-}, "ref">, "onSelect" | "disabled" | "value"> & {
+}, "ref">, "value" | "onSelect" | "disabled"> & {
     disabled?: boolean;
     onSelect?: (value: string) => void;
     value?: string;
@@ -687,8 +725,14 @@ declare const pkg: React.ForwardRefExoticComponent<Children & Omit<Omit<React.De
     onEmpty?: (search: string) => void;
     /** Tool definitions to register in the palette */
     tools?: AgentKToolDef[];
-    /** Execute a tool. If omitted, uses WebMCP navigator.modelContextTesting.executeTool */
-    onToolExecute?: (toolName: string, parameters: Record<string, any>, signal?: AbortSignal) => Promise<any>;
+    /**
+     * Execute a tool. If omitted, uses WebMCP navigator.modelContextTesting.executeTool.
+     *
+     * Return value determines how the result is rendered:
+     * - `string` — displayed as plain text
+     * - `Record<string, unknown>` — displayed as formatted JSON
+     */
+    onToolExecute?: (toolName: string, parameters: Record<string, any>, signal?: AbortSignal) => Promise<string | Record<string, unknown>>;
     /** Called when a tool execution completes */
     onToolResult?: (toolName: string, result: any) => void;
     /** Called when a tool execution fails */
@@ -740,7 +784,7 @@ declare const pkg: React.ForwardRefExoticComponent<Children & Omit<Omit<React.De
         ref?: ((instance: HTMLDivElement | null) => void | React.DO_NOT_USE_OR_YOU_WILL_BE_FIRED_CALLBACK_REF_RETURN_VALUES[keyof React.DO_NOT_USE_OR_YOU_WILL_BE_FIRED_CALLBACK_REF_RETURN_VALUES]) | React.RefObject<HTMLDivElement> | null | undefined;
     } & {
         asChild?: boolean;
-    }, "ref">, "onSelect" | "disabled" | "value"> & {
+    }, "ref">, "value" | "onSelect" | "disabled"> & {
         disabled?: boolean;
         onSelect?: (value: string) => void;
         value?: string;
@@ -751,7 +795,7 @@ declare const pkg: React.ForwardRefExoticComponent<Children & Omit<Omit<React.De
         ref?: ((instance: HTMLInputElement | null) => void | React.DO_NOT_USE_OR_YOU_WILL_BE_FIRED_CALLBACK_REF_RETURN_VALUES[keyof React.DO_NOT_USE_OR_YOU_WILL_BE_FIRED_CALLBACK_REF_RETURN_VALUES]) | React.RefObject<HTMLInputElement> | null | undefined;
     } & {
         asChild?: boolean;
-    }, "ref">, "onChange" | "value" | "type"> & {
+    }, "ref">, "value" | "onChange" | "type"> & {
         value?: string;
         onValueChange?: (search: string) => void;
     } & React.RefAttributes<HTMLInputElement>>;
@@ -788,8 +832,14 @@ declare const pkg: React.ForwardRefExoticComponent<Children & Omit<Omit<React.De
         onEmpty?: (search: string) => void;
         /** Tool definitions to register in the palette */
         tools?: AgentKToolDef[];
-        /** Execute a tool. If omitted, uses WebMCP navigator.modelContextTesting.executeTool */
-        onToolExecute?: (toolName: string, parameters: Record<string, any>, signal?: AbortSignal) => Promise<any>;
+        /**
+         * Execute a tool. If omitted, uses WebMCP navigator.modelContextTesting.executeTool.
+         *
+         * Return value determines how the result is rendered:
+         * - `string` — displayed as plain text
+         * - `Record<string, unknown>` — displayed as formatted JSON
+         */
+        onToolExecute?: (toolName: string, parameters: Record<string, any>, signal?: AbortSignal) => Promise<string | Record<string, unknown>>;
         /** Called when a tool execution completes */
         onToolResult?: (toolName: string, result: any) => void;
         /** Called when a tool execution fails */
@@ -851,7 +901,7 @@ declare const pkg: React.ForwardRefExoticComponent<Children & Omit<Omit<React.De
         ref?: ((instance: HTMLDivElement | null) => void | React.DO_NOT_USE_OR_YOU_WILL_BE_FIRED_CALLBACK_REF_RETURN_VALUES[keyof React.DO_NOT_USE_OR_YOU_WILL_BE_FIRED_CALLBACK_REF_RETURN_VALUES]) | React.RefObject<HTMLDivElement> | null | undefined;
     } & {
         asChild?: boolean;
-    }, "ref">, "onSelect" | "disabled" | "value"> & {
+    }, "ref">, "value" | "onSelect" | "disabled"> & {
         disabled?: boolean;
         onSelect?: (value: string) => void;
         value?: string;
@@ -903,6 +953,10 @@ declare const pkg: React.ForwardRefExoticComponent<Children & Omit<Omit<React.De
     } & {
         asChild?: boolean;
     }, "ref"> & React.RefAttributes<HTMLDivElement>>;
+    IntentTrigger: React.ForwardRefExoticComponent<Children & Omit<ItemProps, "value" | "onSelect"> & {
+        /** The intent string to send when selected. */
+        query: string;
+    } & React.RefAttributes<HTMLDivElement>>;
 };
 /**
  * Access the full AgentK state and actions from any component inside
@@ -927,4 +981,4 @@ declare function useAgentK(): AgentKContextValue;
 
 declare function useCmdk<T = any>(selector: (state: State) => T): T;
 
-export { type ActivityEntry, type ActivityFeedProps, type AgentHintProps, AgentKAgentConfig, type AgentKLabels, type AgentKMode, AgentKPlan, AgentKToolCall, type AgentKToolDef, type ApprovalProps, pkg as Command, ActivityFeed as CommandActivityFeed, AgentHint as CommandAgentHint, Approval as CommandApproval, Dialog as CommandDialog, Empty as CommandEmpty, type CommandFilter, CommandGroup, Input as CommandInput, Item as CommandItem, List as CommandList, Loading as CommandLoading, type CommandProps, Command as CommandRoot, Separator as CommandSeparator, ToolItem as CommandTool, ToolForm as CommandToolForm, ToolResult as CommandToolResult, type DialogProps, type EmptyProps, type GroupProps, type InputProps, type ItemProps, type ListProps, type LoadingProps, type SeparatorProps, type ToolExecution, type ToolFormProps, type ToolInputSchema, type ToolItemProps, type ToolResultProps, defaultFilter, useAgentK, useCmdk as useCommandState, useWebMCPTools };
+export { type ActivityEntry, type ActivityFeedProps, type AgentHintProps, AgentKAgentConfig, type AgentKLabels, type AgentKMode, AgentKPlan, AgentKToolCall, type AgentKToolDef, type ApprovalProps, pkg as Command, ActivityFeed as CommandActivityFeed, AgentHint as CommandAgentHint, Approval as CommandApproval, Dialog as CommandDialog, Empty as CommandEmpty, type CommandFilter, CommandGroup, Input as CommandInput, IntentTrigger as CommandIntentTrigger, Item as CommandItem, List as CommandList, Loading as CommandLoading, type CommandProps, Command as CommandRoot, Separator as CommandSeparator, ToolItem as CommandTool, ToolForm as CommandToolForm, ToolResult as CommandToolResult, type DialogProps, type EmptyProps, type GroupProps, type InputProps, type IntentTriggerProps, type ItemProps, type ListProps, type LoadingProps, type SeparatorProps, type ToolExecution, type ToolFormProps, type ToolInputSchema, type ToolItemProps, type ToolResultProps, defaultFilter, useAgentK, useCmdk as useCommandState, useWebMCPTools };
