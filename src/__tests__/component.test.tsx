@@ -772,7 +772,7 @@ describe('Accessibility', () => {
     })
   })
 
-  it('agent hint has aria-live="polite"', async () => {
+  it('agent hint is interactive with role="button"', async () => {
     renderCommand({
       agent: { provider: 'anthropic', apiKey: 'test' },
     })
@@ -784,7 +784,8 @@ describe('Accessibility', () => {
 
     await waitFor(() => {
       const hint = document.querySelector('[data-agentk-agent-hint]')
-      expect(hint).toHaveAttribute('aria-live', 'polite')
+      expect(hint).toHaveAttribute('role', 'button')
+      expect(hint).toHaveAttribute('tabindex', '0')
     })
   })
 

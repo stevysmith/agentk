@@ -1004,6 +1004,19 @@ export const showcaseStyles = `
     transition-property: height;
   }
 
+  .linear-theme [cmdk-group] + [cmdk-group] {
+    margin-top: 8px;
+  }
+
+  .linear-theme.palette-container [cmdk-group-heading] {
+    padding: 12px 16px 4px;
+    font-size: 13px;
+    font-weight: 400;
+    text-transform: none;
+    letter-spacing: normal;
+    color: var(--gray9);
+  }
+
   .linear-theme [cmdk-item] {
     height: 48px;
     padding: 0 16px;
