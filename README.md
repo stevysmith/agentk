@@ -221,6 +221,16 @@ Auto-generates a parameter form from the active tool's `inputSchema`. Renders wh
     <MyCustomInput value={value} onChange={onChange} />
   )}
 />
+
+// Custom action buttons (Cancel + Execute)
+<Command.ToolForm
+  renderActions={({ cancel, submit, canSubmit }) => (
+    <div>
+      <button onClick={cancel}>Cancel</button>
+      <button onClick={submit} disabled={!canSubmit}>Run it</button>
+    </div>
+  )}
+/>
 ```
 
 Schema type mapping:
@@ -264,7 +274,21 @@ onToolExecute={async (name, params) => {
     </div>
   )}
 />
+
+// Custom dismiss button
+<Command.ToolResult
+  renderDismiss={({ dismiss }) => (
+    <button onClick={dismiss}>Got it</button>
+  )}
+/>
+
+// Auto-dismiss successful results after 6s
+<Command.ToolResult autoDismissAfterMs={6000} />
 ```
+
+`autoDismissAfterMs` only fires for successful results — errors stay visible
+until the user dismisses them manually. Combine with `onModeChange` if you need
+side effects (e.g. navigation) when the panel closes.
 
 The `execution` object:
 
@@ -313,6 +337,12 @@ Renders the agent's plan for user review before execution. Shows each proposed t
   renderSummary={(plan) => <p>{plan.summary}</p>}
   renderCall={(call, index) => (
     <div>{call.toolName}({JSON.stringify(call.parameters)})</div>
+  )}
+  renderActions={({ approve, reject }) => (
+    <div>
+      <button onClick={reject}>Cancel</button>
+      <button onClick={approve}>Run plan</button>
+    </div>
   )}
 />
 ```
@@ -516,6 +546,123 @@ Add suggested queries with `IntentTrigger`:
   <Command.AgentHint />
 </Command.List>
 ```
+
+## Data-attribute reference
+
+Every part exposes data-attributes you can target from CSS without bundling
+styles. The cmdk-prefixed attrs come from cmdk; everything `data-agentk-*` is
+introduced by agentk.
+
+### Root and dialog
+
+| Selector | Where |
+|---|---|
+| `[cmdk-root]` | Top-level element (Command / Command.Dialog) |
+| `[cmdk-root][data-agentk-mode="<mode>"]` | Reflects the current state machine mode (`browse`, `form`, `executing`, `result`, `planning`, `approval`) |
+| `[cmdk-root][data-agentk-hint]` | Present when `AgentHint` is showing |
+| `[cmdk-overlay]` | Dialog backdrop |
+| `[cmdk-dialog]` | Dialog surface |
+| `[cmdk-input]` | Search input |
+| `[cmdk-list]` | List wrapper (animatable via `--cmdk-list-height`) |
+| `[cmdk-group]`, `[cmdk-group-heading]` | Group + its heading |
+| `[cmdk-empty]` | Empty state |
+
+### Tool item
+
+| Selector | Where |
+|---|---|
+| `[cmdk-item][data-agentk-tool="<name>"]` | The tool list item |
+| `[data-agentk-tool-icon]` | Default icon span (only when `tool.icon` is set) |
+| `[data-agentk-tool-name]` | Default label span |
+| `[data-agentk-tool-description]` | Default description span |
+| `[data-agentk-intent-trigger]` | A `Command.IntentTrigger` item |
+
+### ToolForm
+
+| Selector | Where |
+|---|---|
+| `[data-agentk-form]` | Form container |
+| `[data-agentk-form-invalid]` | Set on the form when validation has errors |
+| `[data-agentk-form-heading]` | Header row (icon + title + description) |
+| `[data-agentk-form-title]` | Form title |
+| `[data-agentk-form-description]` | Form description |
+| `[data-agentk-form-fields]` | Wrapper around the field list |
+| `[data-agentk-form-field]` | Wrapper around a single field |
+| `[data-agentk-form-field][data-agentk-field-error]` | Field whose value is invalid |
+| `[data-agentk-form-label]` | Default field label |
+| `[data-agentk-required]` | Required-field marker (default `*`) |
+| `[data-agentk-form-hint]` | Field description / hint |
+| `[data-agentk-field-error-message]` | Inline validation message |
+| `[data-agentk-form-actions]` | Cancel + submit row |
+| `[data-agentk-form-cancel]` | Cancel button |
+| `[data-agentk-form-submit]` | Submit button |
+
+### ToolResult
+
+| Selector | Where |
+|---|---|
+| `[data-agentk-result]` | Result container |
+| `[data-agentk-result][data-agentk-executing]` | Set during the executing phase |
+| `[data-agentk-result-loading]` | Spinner row during execution |
+| `[data-agentk-progress]` | "Step N of M" indicator during a chained plan |
+| `[data-agentk-result][data-agentk-success]` | Set when a successful result is shown |
+| `[data-agentk-result][data-agentk-error]` | Set when an error is shown |
+| `[data-agentk-result-heading]` | Result title row |
+| `[data-agentk-result-body]` | Result content wrapper |
+| `[data-agentk-result-data]` | The result value (string `<span>` or JSON `<pre>`) |
+| `[data-agentk-result-error]` | The error message `<pre>` |
+| `[data-agentk-result-meta]` | Meta row (e.g. duration) |
+| `[data-agentk-result-dismiss]` | Default dismiss button |
+
+### AgentHint
+
+| Selector | Where |
+|---|---|
+| `[data-agentk-agent-hint]` | Hint container (clickable) |
+| `[data-agentk-agent-hint-icon]` | Default sparkle icon |
+| `[data-agentk-agent-hint-content]` | Label + query wrapper |
+| `[data-agentk-agent-hint-label]` | "Ask the agent" label |
+| `[data-agentk-agent-hint-query]` | The current search text in quotes |
+| `[data-agentk-agent-hint-kbd]` | Default `↵` kbd glyph |
+
+### Approval
+
+| Selector | Where |
+|---|---|
+| `[data-agentk-approval]` | Approval container |
+| `[data-agentk-approval-summary]` | Plan summary line |
+| `[data-agentk-approval-calls]` | List of planned tool calls |
+| `[data-agentk-approval-call]` | A single planned tool call |
+| `[data-agentk-approval-call-icon]` | Tool icon (only when set) |
+| `[data-agentk-approval-call-name]` | Tool name |
+| `[data-agentk-approval-call-params]` | Parameter chips wrapper |
+| `[data-agentk-approval-param]` | Single parameter chip |
+| `[data-agentk-approval-param-value]` | Stringified parameter value |
+| `[data-agentk-approval-actions]` | Reject + approve row |
+| `[data-agentk-approval-reject]` | Reject button |
+| `[data-agentk-approval-approve]` | Approve button |
+
+### Planning / spinner
+
+| Selector | Where |
+|---|---|
+| `[data-agentk-planning]` | Planning indicator container |
+| `[data-agentk-planning-text]` | "Thinking…" label |
+| `[data-agentk-spinner]` | The animated spinner element (also reused inside `[data-agentk-result-loading]`) |
+
+### ActivityFeed
+
+| Selector | Where |
+|---|---|
+| `[data-agentk-activity]` | Feed container |
+| `[data-agentk-activity][data-agentk-activity-expanded]` | Set when the feed is expanded |
+| `[data-agentk-activity-toggle]` | Expand/collapse button |
+| `[data-agentk-activity-status]` | Latest status text |
+| `[data-agentk-activity-chevron]` | Chevron icon (with `data-expanded` when open) |
+| `[data-agentk-activity-entry]` | A feed entry |
+| `[data-agentk-activity-entry][data-agentk-activity-type="<type>"]` | Entry type (`tool_start`, `tool_complete`, `tool_error`, etc.) |
+| `[data-agentk-activity-icon]` | Per-entry icon |
+| `[data-agentk-activity-message]` | Per-entry message |
 
 ## FAQ
 

@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: agentk
+    runtime: node
+    plan: free
+    buildCommand: cd website && npm install && npm run build
+    startCommand: cd website && npm start
+    envVars:
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: NODE_ENV
+        value: production

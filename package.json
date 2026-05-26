@@ -1,6 +1,10 @@
 {
-  "name": "agentk",
-  "version": "0.1.0",
+  "name": "@stevysmith/agentk",
+  "version": "0.2.0",
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com",
+    "access": "public"
+  },
   "description": "A command palette for the agentic web — forked from cmdk with WebMCP primitives",
   "license": "MIT",
   "main": "./dist/index.js",

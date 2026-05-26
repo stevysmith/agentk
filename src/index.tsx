@@ -313,12 +313,32 @@ type ToolFormProps = Children &
       value: any,
       onChange: (value: any) => void,
     ) => React.ReactNode
+    /**
+     * Custom renderer for the cancel + submit action row. When provided, fully
+     * replaces the default `[data-agentk-form-actions]` block.
+     */
+    renderActions?: (actions: {
+      cancel: () => void
+      submit: () => void
+      canSubmit: boolean
+    }) => React.ReactNode
   }
 
 type ToolResultProps = Children &
   DivProps & {
     /** Custom result renderer */
     renderResult?: (execution: ToolExecution) => React.ReactNode
+    /**
+     * Custom renderer for the dismiss button. When provided, replaces the
+     * default `[data-agentk-result-dismiss]` button.
+     */
+    renderDismiss?: (actions: { dismiss: () => void }) => React.ReactNode
+    /**
+     * Automatically dismiss the result panel after the given number of
+     * milliseconds. Only fires for successful results (errors stay visible).
+     * Set to `0` or omit to disable.
+     */
+    autoDismissAfterMs?: number
   }
 
 type CommandProps = Children &
@@ -1874,7 +1894,7 @@ ToolItem.displayName = 'Command.Tool'
  * ```
  */
 const ToolForm = React.forwardRef<HTMLDivElement, ToolFormProps>((props, forwardedRef) => {
-  const { children, renderField, ...etc } = props
+  const { children, renderField, renderActions, ...etc } = props
   const ak = React.useContext(AgentKContext)
   const firstInputRef = React.useRef<HTMLInputElement | HTMLSelectElement>(null)
 
@@ -2061,14 +2081,22 @@ const ToolForm = React.forwardRef<HTMLDivElement, ToolFormProps>((props, forward
           )
         })}
       </div>
-      <div data-agentk-form-actions="">
-        <button data-agentk-form-cancel="" onClick={() => ak.reset()} type="button">
-          {labels.cancel}
-        </button>
-        <button data-agentk-form-submit="" onClick={handleSubmit} type="button">
-          {labels.execute}
-        </button>
-      </div>
+      {renderActions ? (
+        renderActions({
+          cancel: () => ak.reset(),
+          submit: handleSubmit,
+          canSubmit: !hasErrors,
+        })
+      ) : (
+        <div data-agentk-form-actions="">
+          <button data-agentk-form-cancel="" onClick={() => ak.reset()} type="button">
+            {labels.cancel}
+          </button>
+          <button data-agentk-form-submit="" onClick={handleSubmit} type="button">
+            {labels.execute}
+          </button>
+        </div>
+      )}
       {children}
     </Primitive.div>
   )
@@ -2083,14 +2111,24 @@ ToolForm.displayName = 'Command.ToolForm'
  * Provide `renderResult` for fully custom result rendering.
  */
 const ToolResult = React.forwardRef<HTMLDivElement, ToolResultProps>((props, forwardedRef) => {
-  const { children, renderResult, ...etc } = props
+  const { children, renderResult, renderDismiss, autoDismissAfterMs, ...etc } = props
   const ak = React.useContext(AgentKContext)
+
+  // Auto-dismiss successful results after the configured delay.
+  React.useEffect(() => {
+    if (!ak || !autoDismissAfterMs || autoDismissAfterMs <= 0) return
+    if (ak.state.mode !== 'result') return
+    if (ak.state.execution?.error) return
+    const timeout = setTimeout(() => ak.reset(), autoDismissAfterMs)
+    return () => clearTimeout(timeout)
+  }, [ak, autoDismissAfterMs, ak?.state.mode, ak?.state.execution])
 
   if (!ak || (ak.state.mode !== 'result' && ak.state.mode !== 'executing')) return null
 
   const { execution, mode } = ak.state
   const fmt = ak.formatToolName
   const labels = ak.labels
+  const dismiss = () => ak.reset()
 
   if (mode === 'executing') {
     const isPlan = !!ak.state.plan
@@ -2116,9 +2154,13 @@ const ToolResult = React.forwardRef<HTMLDivElement, ToolResultProps>((props, for
     return (
       <Primitive.div ref={forwardedRef} {...etc} data-agentk-result="">
         {renderResult(execution)}
-        <button data-agentk-result-dismiss="" onClick={() => ak.reset()} type="button">
-          {labels.done}
-        </button>
+        {renderDismiss ? (
+          renderDismiss({ dismiss })
+        ) : (
+          <button data-agentk-result-dismiss="" onClick={dismiss} type="button">
+            {labels.done}
+          </button>
+        )}
         {children}
       </Primitive.div>
     )
@@ -2155,9 +2197,13 @@ const ToolResult = React.forwardRef<HTMLDivElement, ToolResultProps>((props, for
           {execution.startedAt && `${((Date.now() - execution.startedAt) / 1000).toFixed(1)}s`}
         </span>
       </div>
-      <button data-agentk-result-dismiss="" onClick={() => ak.reset()} type="button">
-        {labels.done}
-      </button>
+      {renderDismiss ? (
+        renderDismiss({ dismiss })
+      ) : (
+        <button data-agentk-result-dismiss="" onClick={dismiss} type="button">
+          {labels.done}
+        </button>
+      )}
       {children}
     </Primitive.div>
   )
@@ -2369,10 +2415,18 @@ type ApprovalProps = Children &
     renderCall?: (call: AgentKToolCall, index: number) => React.ReactNode
     /** Custom renderer for the plan summary line. */
     renderSummary?: (plan: AgentKPlan) => React.ReactNode
+    /**
+     * Custom renderer for the approve + reject action row. When provided, fully
+     * replaces the default `[data-agentk-approval-actions]` block.
+     */
+    renderActions?: (actions: {
+      approve: () => void
+      reject: () => void
+    }) => React.ReactNode
   }
 
 const Approval = React.forwardRef<HTMLDivElement, ApprovalProps>((props, ref) => {
-  const { children, renderCall, renderSummary, ...etc } = props
+  const { children, renderCall, renderSummary, renderActions, ...etc } = props
   const ak = React.useContext(AgentKContext)
   const containerRef = React.useRef<HTMLDivElement>(null)
   const previousFocusRef = React.useRef<HTMLElement | null>(null)
@@ -2449,14 +2503,21 @@ const Approval = React.forwardRef<HTMLDivElement, ApprovalProps>((props, ref) =>
                 )
               })}
             </div>
-            <div data-agentk-approval-actions="">
-              <button data-agentk-approval-reject="" onClick={() => ak.rejectPlan()}>
-                {labels.reject}
-              </button>
-              <button data-agentk-approval-approve="" onClick={() => ak.approvePlan()}>
-                {labels.approve}
-              </button>
-            </div>
+            {renderActions ? (
+              renderActions({
+                approve: () => ak.approvePlan(),
+                reject: () => ak.rejectPlan(),
+              })
+            ) : (
+              <div data-agentk-approval-actions="">
+                <button data-agentk-approval-reject="" onClick={() => ak.rejectPlan()}>
+                  {labels.reject}
+                </button>
+                <button data-agentk-approval-approve="" onClick={() => ak.approvePlan()}>
+                  {labels.approve}
+                </button>
+              </div>
+            )}
           </>
         )}
       </Primitive.div>
