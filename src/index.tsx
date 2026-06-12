@@ -17,17 +17,66 @@ import { composeRefs } from '@radix-ui/react-compose-refs'
 import { resolveProvider, type AgentKAgentConfig, type AgentKPlan, type AgentKToolCall } from './providers'
 
 // WebMCP type augmentation
+type WebMCPModelContext = {
+  registerTool: (tool: any) => void
+  unregisterTool: (name: string) => void
+  getTools?: () => any[]
+  executeTool?: (name: string, params: string) => Promise<any>
+}
+type WebMCPModelContextTesting = {
+  listTools: () => any[]
+  executeTool: (name: string, params: string) => Promise<any>
+}
+
 declare global {
   interface Navigator {
-    modelContext?: {
-      registerTool: (tool: any) => void
-      unregisterTool: (name: string) => void
-    }
-    modelContextTesting?: {
-      listTools: () => any[]
-      executeTool: (name: string, params: string) => Promise<any>
-    }
+    modelContext?: WebMCPModelContext
+    modelContextTesting?: WebMCPModelContextTesting
   }
+  interface Document {
+    modelContext?: WebMCPModelContext
+  }
+}
+
+// Chrome 150 moved the API from navigator.modelContext to
+// document.modelContext. Accept either, preferring the newer location.
+function getModelContext(): WebMCPModelContext | undefined {
+  if (typeof document !== 'undefined' && document.modelContext) return document.modelContext
+  if (typeof navigator !== 'undefined' && navigator.modelContext) return navigator.modelContext
+  return undefined
+}
+
+function getModelContextTesting(): WebMCPModelContextTesting | undefined {
+  if (typeof navigator !== 'undefined' && navigator.modelContextTesting) return navigator.modelContextTesting
+  return undefined
+}
+
+function webMCPListTools(): any[] | undefined {
+  const mc = getModelContext()
+  if (mc?.getTools) {
+    try {
+      return mc.getTools()
+    } catch {}
+  }
+  const testing = getModelContextTesting()
+  if (testing) {
+    try {
+      return testing.listTools()
+    } catch {}
+  }
+  return undefined
+}
+
+function canWebMCPExecute(): boolean {
+  return !!(getModelContext()?.executeTool || getModelContextTesting())
+}
+
+async function webMCPExecuteTool(name: string, parameters: Record<string, any>): Promise<any> {
+  const mc = getModelContext()
+  if (mc?.executeTool) return mc.executeTool(name, JSON.stringify(parameters))
+  const testing = getModelContextTesting()
+  if (testing) return testing.executeTool(name, JSON.stringify(parameters))
+  throw new Error('WebMCP execute API not available')
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -854,8 +903,8 @@ const Command = React.forwardRef<HTMLDivElement, CommandProps>((props, forwarded
           let result: any
           if (onToolExecute) {
             result = await onToolExecute(toolName, parameters, signal)
-          } else if (typeof navigator !== 'undefined' && navigator.modelContextTesting) {
-            result = await navigator.modelContextTesting.executeTool(toolName, JSON.stringify(parameters))
+          } else if (canWebMCPExecute()) {
+            result = await webMCPExecuteTool(toolName, parameters)
           } else {
             throw new Error('No executor available. Provide onToolExecute or enable WebMCP.')
           }
@@ -959,7 +1008,7 @@ const Command = React.forwardRef<HTMLDivElement, CommandProps>((props, forwarded
 
   // Check WebMCP availability
   const webmcpAvailable = React.useMemo(() => {
-    return typeof navigator !== 'undefined' && !!navigator.modelContext
+    return !!getModelContext()
   }, [])
 
   const agentKContext: AgentKContextValue = React.useMemo(
@@ -1854,12 +1903,18 @@ const ToolItem = React.forwardRef<HTMLDivElement, ToolItemProps>((props, forward
   const ak = React.useContext(AgentKContext)
   const fmt = ak?.formatToolName ?? humanizeToolName
 
+  // Match against what the user sees. Raw names like `set_expiry` fail
+  // searches typed with spaces ("set ex"), because command-score requires
+  // a space in the query to land on a space in the value, and `_` is not
+  // one. The display label is the value; the raw name stays searchable as
+  // a keyword. Descriptions are prose and are deliberately NOT matched —
+  // they made unrelated tools surface on incidental words.
   return (
     <Item
       ref={forwardedRef}
       {...itemProps}
-      value={itemProps.value ?? tool.name}
-      keywords={[...(itemProps.keywords ?? []), ...(tool.keywords ?? []), tool.description ?? ''].filter(Boolean)}
+      value={itemProps.value ?? (tool.label || fmt(tool.name))}
+      keywords={[tool.name, ...(itemProps.keywords ?? []), ...(tool.keywords ?? [])].filter(Boolean)}
       onSelect={(val) => {
         ak?.selectTool(tool)
         itemProps.onSelect?.(val)
@@ -2630,7 +2685,8 @@ ActivityFeed.displayName = 'Command.ActivityFeed'
 // ─────────────────────────────────────────────────────────────
 
 /**
- * Discovers WebMCP tools from the browser's `navigator.modelContext` API.
+ * Discovers WebMCP tools from the browser's `document.modelContext` API
+ * (falling back to the older `navigator.modelContext` location).
  *
  * Returns an object with:
  * - `tools` — an array of `AgentKToolDef` discovered from the page.
@@ -2650,46 +2706,27 @@ export function useWebMCPTools() {
   const [tools, setTools] = React.useState<AgentKToolDef[]>([])
   const [available, setAvailable] = React.useState(false)
 
+  const scan = React.useCallback(() => {
+    const discovered = webMCPListTools()
+    if (!discovered) return
+    setTools(
+      discovered.map((t: any) => ({
+        name: t.name,
+        description: t.description,
+        inputSchema: t.inputSchema,
+      })),
+    )
+  }, [])
+
   React.useEffect(() => {
-    const hasWebMCP = typeof navigator !== 'undefined' && !!(navigator as any).modelContext
-    setAvailable(hasWebMCP)
+    setAvailable(!!getModelContext())
+    scan()
+  }, [scan])
 
-    if (hasWebMCP && (navigator as any).modelContextTesting) {
-      try {
-        const discovered = (navigator as any).modelContextTesting.listTools()
-        setTools(
-          discovered.map((t: any) => ({
-            name: t.name,
-            description: t.description,
-            inputSchema: t.inputSchema,
-          })),
-        )
-      } catch {
-        // WebMCP available but testing API not enabled
-      }
-    }
-  }, [])
-
-  const refresh = React.useCallback(() => {
-    if ((navigator as any).modelContextTesting) {
-      try {
-        const discovered = (navigator as any).modelContextTesting.listTools()
-        setTools(
-          discovered.map((t: any) => ({
-            name: t.name,
-            description: t.description,
-            inputSchema: t.inputSchema,
-          })),
-        )
-      } catch {}
-    }
-  }, [])
+  const refresh = scan
 
   const executeTool = React.useCallback(async (name: string, parameters: Record<string, any>) => {
-    if (!(navigator as any).modelContextTesting) {
-      throw new Error('WebMCP testing API not available')
-    }
-    return (navigator as any).modelContextTesting.executeTool(name, JSON.stringify(parameters))
+    return webMCPExecuteTool(name, parameters)
   }, [])
 
   return { tools, available, refresh, executeTool }

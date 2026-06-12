@@ -7,13 +7,13 @@ Define your tools once as JSON Schema. Users browse and execute them from a comm
 ## Install
 
 ```bash
-npm install agentk
+npm install @stevysmith/agentk
 ```
 
 ## Use
 
 ```tsx
-import { Command } from 'agentk'
+import { Command } from '@stevysmith/agentk'
 
 const tools = [
   {
@@ -475,11 +475,11 @@ agent={{
 
 ## WebMCP registration
 
-agentk tools use the same JSON Schema format as WebMCP. Register them so AI agents can discover your app:
+agentk tools use the same JSON Schema format as WebMCP. Register them so AI agents can discover your app. Note that Chrome 150 moved the API from `navigator.modelContext` to `document.modelContext`; feature-detect both:
 
 ```tsx
 useEffect(() => {
-  const mc = navigator.modelContext
+  const mc = document.modelContext ?? navigator.modelContext
   if (!mc) return
 
   for (const tool of tools) {
@@ -672,7 +672,7 @@ introduced by agentk.
 
 **Which LLM providers?** Anthropic, OpenAI, and Google (Gemini) are built in. Use `provider: 'custom'` with `providerFn` for anything else.
 
-**What is WebMCP?** A [browser API](https://nicksavage.ca/blog/web-model-context-protocol.html) (`navigator.modelContext`) for registering tools that AI agents can discover. Chrome is shipping it. agentk makes your app WebMCP-ready.
+**What is WebMCP?** A [browser API](https://developer.chrome.com/docs/ai/webmcp) (`document.modelContext`, formerly `navigator.modelContext`) for registering tools that AI agents can discover. Chrome has it in origin trial. agentk makes your app WebMCP-ready.
 
 **Do I need WebMCP to use agentk?** No. The command palette and tool execution work without it. WebMCP registration is opt-in.
 

@@ -154,6 +154,48 @@ describe('Basic rendering', () => {
 // Tool selection
 // ─────────────────────────────────────────────────────────────
 
+describe('Filtering', () => {
+  it('matches the display label typed with spaces ("Set br" → Set Brightness)', () => {
+    renderCommand()
+
+    fireEvent.change(screen.getByPlaceholderText('Search...'), { target: { value: 'Set br' } })
+
+    expect(screen.getByText('Set Brightness')).toBeInTheDocument()
+    expect(screen.queryByText('No results')).not.toBeInTheDocument()
+  })
+
+  it('still matches the raw tool name ("set_brightness")', () => {
+    renderCommand()
+
+    fireEvent.change(screen.getByPlaceholderText('Search...'), { target: { value: 'set_brightness' } })
+
+    expect(screen.getByText('Set Brightness')).toBeInTheDocument()
+  })
+
+  it('matches explicit keywords', () => {
+    renderCommand({
+      tools: [{ name: 'set_expiry', label: 'Set expiry', description: 'Auto-delete the site later', keywords: ['ttl'] }],
+    })
+
+    fireEvent.change(screen.getByPlaceholderText('Search...'), { target: { value: 'ttl' } })
+
+    expect(screen.getByText('Set expiry')).toBeInTheDocument()
+  })
+
+  it('does not match on description prose', () => {
+    const tools = [
+      { name: 'set_expiry', label: 'Set expiry', description: 'Auto-delete the site after a set time' },
+      { name: 'delete_site', label: 'Delete site', description: 'Permanently delete a site' },
+    ]
+    renderCommand({ tools })
+
+    fireEvent.change(screen.getByPlaceholderText('Search...'), { target: { value: 'delete' } })
+
+    expect(screen.getByText('Delete site')).toBeInTheDocument()
+    expect(screen.queryByText('Set expiry')).not.toBeInTheDocument()
+  })
+})
+
 describe('Tool selection', () => {
   it('selecting a tool with no params executes immediately', async () => {
     const onExecute = vi.fn(async () => ({ power: 'on' }))
