@@ -130,6 +130,14 @@ export type AgentKAgentConfig = {
    * @param error - The error that occurred
    */
   onProviderError?: (error: Error) => void
+  /**
+   * Progress callback fired while a streaming response is being received
+   * (requires `stream: true`). Reports the cumulative number of characters
+   * generated so far, so a UI can show live progress during a long generation.
+   *
+   * @param chars - Total characters streamed so far
+   */
+  onProgress?: (chars: number) => void
 }
 
 /**
