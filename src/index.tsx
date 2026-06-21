@@ -522,6 +522,7 @@ type AgentKAction =
   | { type: 'START_EXECUTION'; toolName: string; parameters: Record<string, any> }
   | { type: 'COMPLETE_EXECUTION'; result: any }
   | { type: 'FAIL_EXECUTION'; error: string }
+  | { type: 'SHOW_MESSAGE'; message: string }
   | { type: 'RESET' }
   // Agent mode actions
   | { type: 'START_PLANNING'; prompt: string }
@@ -599,6 +600,14 @@ function agentKReducer(state: AgentKInternalState, action: AgentKAction): AgentK
         execution: state.execution
           ? { ...state.execution, error: action.error }
           : { toolName: '', parameters: {}, error: action.error, startedAt: Date.now() },
+      }
+    case 'SHOW_MESSAGE':
+      // The model replied with text and no tool call (e.g. a clarification).
+      // Surface it in the result panel instead of silently dropping it.
+      return {
+        ...state,
+        mode: 'result',
+        execution: { toolName: '', parameters: {}, result: action.message, startedAt: Date.now(), _seq: ++executionSeq },
       }
     case 'RESET':
       return { ...initialAgentKState, activityLog: state.activityLog }
@@ -982,12 +991,20 @@ const Command = React.forwardRef<HTMLDivElement, CommandProps>((props, forwarded
         const plan = await provider(akState.pendingPrompt!, allTools, agent)
 
         if (plan.calls.length === 0) {
-          // LLM responded with text only, no tool calls — return to browse
+          // LLM responded with text only, no tool calls. Surface that text
+          // (a clarification, a refusal, an explanation) in the result panel
+          // instead of silently returning to browse, which looks like nothing
+          // happened.
+          const message = (plan.summary || '').trim()
           akDispatch({
             type: 'LOG_ACTIVITY',
-            entry: { type: 'plan', message: plan.summary || 'No actions needed' },
+            entry: { type: 'plan', message: message || 'No actions needed' },
           })
-          akDispatch({ type: 'SET_MODE', mode: 'browse' })
+          if (message) {
+            akDispatch({ type: 'SHOW_MESSAGE', message })
+          } else {
+            akDispatch({ type: 'SET_MODE', mode: 'browse' })
+          }
           return
         }
 
