@@ -44,6 +44,7 @@ export const googleProvider: AgentKProvider = async (prompt, tools, config, sign
     systemInstruction: {
       parts: [{ text: config.systemPrompt || buildSystemPrompt(tools) }],
     },
+    ...(config.maxTokens ? { generationConfig: { maxOutputTokens: config.maxTokens } } : {}),
     tools: [
       {
         functionDeclarations: tools.map((t) => {

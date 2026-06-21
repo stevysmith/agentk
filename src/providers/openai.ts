@@ -38,6 +38,7 @@ export const openaiProvider: AgentKProvider = async (prompt, tools, config, sign
 
   const body = {
     model,
+    ...(config.maxTokens ? { max_tokens: config.maxTokens } : {}),
     messages: [
       { role: 'system', content: config.systemPrompt || buildSystemPrompt(tools) },
       { role: 'user', content: prompt },

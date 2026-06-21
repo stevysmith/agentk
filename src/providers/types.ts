@@ -99,6 +99,14 @@ export type AgentKAgentConfig = {
    */
   maxCalls?: number
   /**
+   * Maximum tokens the model may generate in its response. Important when the
+   * model fills a large tool argument (e.g. a full HTML document): too low a
+   * cap truncates the tool call and its arguments arrive empty. Each model has
+   * its own ceiling, so set this per provider.
+   * @default 8192 (Anthropic; OpenAI and Google use the model default if unset)
+   */
+  maxTokens?: number
+  /**
    * Custom provider function. Required when `provider` is `'custom'`.
    */
   providerFn?: AgentKProvider
