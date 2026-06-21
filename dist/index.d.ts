@@ -4,16 +4,23 @@ import { Primitive } from '@radix-ui/react-primitive';
 import { A as AgentKToolCall, a as AgentKPlan, b as AgentKAgentConfig } from './types-QpaOvRHU.js';
 export { c as AgentKProvider } from './types-QpaOvRHU.js';
 
+type WebMCPModelContext = {
+    registerTool: (tool: any) => void;
+    unregisterTool: (name: string) => void;
+    getTools?: () => any[];
+    executeTool?: (name: string, params: string) => Promise<any>;
+};
+type WebMCPModelContextTesting = {
+    listTools: () => any[];
+    executeTool: (name: string, params: string) => Promise<any>;
+};
 declare global {
     interface Navigator {
-        modelContext?: {
-            registerTool: (tool: any) => void;
-            unregisterTool: (name: string) => void;
-        };
-        modelContextTesting?: {
-            listTools: () => any[];
-            executeTool: (name: string, params: string) => Promise<any>;
-        };
+        modelContext?: WebMCPModelContext;
+        modelContextTesting?: WebMCPModelContextTesting;
+    }
+    interface Document {
+        modelContext?: WebMCPModelContext;
     }
 }
 type Children = {
@@ -746,7 +753,8 @@ declare const ActivityFeed: React.ForwardRefExoticComponent<Children & Omit<Omit
     renderEntry?: (entry: ActivityEntry) => React.ReactNode;
 } & React.RefAttributes<HTMLDivElement>>;
 /**
- * Discovers WebMCP tools from the browser's `navigator.modelContext` API.
+ * Discovers WebMCP tools from the browser's `document.modelContext` API
+ * (falling back to the older `navigator.modelContext` location).
  *
  * Returns an object with:
  * - `tools` — an array of `AgentKToolDef` discovered from the page.

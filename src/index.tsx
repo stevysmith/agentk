@@ -593,7 +593,12 @@ function agentKReducer(state: AgentKInternalState, action: AgentKAction): AgentK
       return {
         ...state,
         mode: 'result',
-        execution: state.execution ? { ...state.execution, error: action.error } : null,
+        // A failure during planning (before any tool ran) has no execution to
+        // attach the error to — synthesize one so the error is still shown in
+        // the result panel instead of leaving a blank dialog.
+        execution: state.execution
+          ? { ...state.execution, error: action.error }
+          : { toolName: '', parameters: {}, error: action.error, startedAt: Date.now() },
       }
     case 'RESET':
       return { ...initialAgentKState, activityLog: state.activityLog }
