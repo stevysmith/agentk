@@ -39,7 +39,10 @@ export const anthropicProvider: AgentKProvider = async (prompt, tools, config, s
 
   const body: Record<string, any> = {
     model,
-    max_tokens: 1024,
+    // Default raised from 1024: a tool call that fills a large argument (e.g. a
+    // full HTML document) is truncated at a low cap, so its input JSON never
+    // completes and arrives empty. Override per model via config.maxTokens.
+    max_tokens: config.maxTokens ?? 8192,
     system: config.systemPrompt || buildSystemPrompt(tools),
     tools: tools.map((t) => {
       const schema = toToolSchema(t)
