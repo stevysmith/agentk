@@ -65,6 +65,13 @@ export type AgentKAgentConfig = {
    */
   apiKey?: string
   /**
+   * Acknowledge that an API key is intentionally used in the browser
+   * (e.g. a bring-your-own-key UI where the key is the end user's own and
+   * never leaves their machine). Suppresses the client-side key warning.
+   * @default false
+   */
+  dangerouslyAllowBrowserKey?: boolean
+  /**
    * Custom API endpoint URL. Overrides the provider's default endpoint.
    * Use this to proxy requests through your own server.
    */

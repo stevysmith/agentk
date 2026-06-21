@@ -1,8 +1,8 @@
 import * as RadixDialog from '@radix-ui/react-dialog';
 import * as React from 'react';
 import { Primitive } from '@radix-ui/react-primitive';
-import { A as AgentKToolCall, a as AgentKPlan, b as AgentKAgentConfig } from './types-QpaOvRHU.js';
-export { c as AgentKProvider } from './types-QpaOvRHU.js';
+import { A as AgentKToolCall, a as AgentKPlan, b as AgentKAgentConfig } from './types-DnREXcny.js';
+export { c as AgentKProvider } from './types-DnREXcny.js';
 
 type WebMCPModelContext = {
     registerTool: (tool: any) => void;
