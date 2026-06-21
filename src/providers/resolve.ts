@@ -68,10 +68,11 @@ export function resolveProvider(config: AgentKAgentConfig): AgentKProvider {
     throw new Error(`Unknown provider: ${config.provider}`)
   }
 
-  // Warn if API key is used client-side
-  if (config.apiKey && typeof window !== 'undefined') {
+  // Warn if API key is used client-side, unless the caller has explicitly
+  // opted into a browser key (e.g. a bring-your-own-key UI).
+  if (config.apiKey && !config.dangerouslyAllowBrowserKey && typeof window !== 'undefined') {
     console.warn(
-      '[agentk] API key detected in browser. For production, use the `endpoint` prop to proxy through your server.',
+      '[agentk] API key detected in browser. For production, use the `endpoint` prop to proxy through your server, or set `dangerouslyAllowBrowserKey: true` for an intentional bring-your-own-key setup.',
     )
   }
 
