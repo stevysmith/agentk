@@ -1,8 +1,8 @@
 import * as RadixDialog from '@radix-ui/react-dialog';
 import * as React from 'react';
 import { Primitive } from '@radix-ui/react-primitive';
-import { A as AgentKToolCall, a as AgentKPlan, b as AgentKAgentConfig } from './types-eZJqZiXX.mjs';
-export { c as AgentKProvider } from './types-eZJqZiXX.mjs';
+import { A as AgentKToolCall, a as AgentKPlan, b as AgentKAgentConfig } from './types-CXxYj9tM.mjs';
+export { c as AgentKProvider } from './types-CXxYj9tM.mjs';
 
 type WebMCPModelContext = {
     registerTool: (tool: any) => void;
@@ -435,7 +435,7 @@ declare const Item: React.ForwardRefExoticComponent<Children & Omit<Omit<Omit<Re
     ref?: ((instance: HTMLDivElement | null) => void | React.DO_NOT_USE_OR_YOU_WILL_BE_FIRED_CALLBACK_REF_RETURN_VALUES[keyof React.DO_NOT_USE_OR_YOU_WILL_BE_FIRED_CALLBACK_REF_RETURN_VALUES]) | React.RefObject<HTMLDivElement> | null | undefined;
 } & {
     asChild?: boolean;
-}, "ref">, "onSelect" | "disabled" | "value"> & {
+}, "ref">, "value" | "onSelect" | "disabled"> & {
     disabled?: boolean;
     onSelect?: (value: string) => void;
     value?: string;
@@ -462,7 +462,7 @@ declare const Input: React.ForwardRefExoticComponent<Omit<Omit<Omit<React.Detail
     ref?: ((instance: HTMLInputElement | null) => void | React.DO_NOT_USE_OR_YOU_WILL_BE_FIRED_CALLBACK_REF_RETURN_VALUES[keyof React.DO_NOT_USE_OR_YOU_WILL_BE_FIRED_CALLBACK_REF_RETURN_VALUES]) | React.RefObject<HTMLInputElement> | null | undefined;
 } & {
     asChild?: boolean;
-}, "ref">, "onChange" | "value" | "type"> & {
+}, "ref">, "value" | "onChange" | "type"> & {
     value?: string;
     onValueChange?: (search: string) => void;
 } & React.RefAttributes<HTMLInputElement>>;
@@ -594,7 +594,7 @@ type IntentTriggerProps = Children & Omit<ItemProps, 'onSelect' | 'value'> & {
     /** The intent string to send when selected. */
     query: string;
 };
-declare const IntentTrigger: React.ForwardRefExoticComponent<Children & Omit<ItemProps, "onSelect" | "value"> & {
+declare const IntentTrigger: React.ForwardRefExoticComponent<Children & Omit<ItemProps, "value" | "onSelect"> & {
     /** The intent string to send when selected. */
     query: string;
 } & React.RefAttributes<HTMLDivElement>>;
@@ -617,7 +617,7 @@ declare const ToolItem: React.ForwardRefExoticComponent<Children & Omit<Omit<Omi
     ref?: ((instance: HTMLDivElement | null) => void | React.DO_NOT_USE_OR_YOU_WILL_BE_FIRED_CALLBACK_REF_RETURN_VALUES[keyof React.DO_NOT_USE_OR_YOU_WILL_BE_FIRED_CALLBACK_REF_RETURN_VALUES]) | React.RefObject<HTMLDivElement> | null | undefined;
 } & {
     asChild?: boolean;
-}, "ref">, "onSelect" | "disabled" | "value"> & {
+}, "ref">, "value" | "onSelect" | "disabled"> & {
     disabled?: boolean;
     onSelect?: (value: string) => void;
     value?: string;
@@ -703,6 +703,12 @@ type ApprovalProps = Children & DivProps & {
     /** Custom renderer for the plan summary line. */
     renderSummary?: (plan: AgentKPlan) => React.ReactNode;
     /**
+     * Custom renderer for the planning state (while the model is generating,
+     * before a plan is returned). Replaces the default spinner — use it to show
+     * live progress. Pair with `onProgress` on the agent config.
+     */
+    renderPlanning?: () => React.ReactNode;
+    /**
      * Custom renderer for the approve + reject action row. When provided, fully
      * replaces the default `[data-agentk-approval-actions]` block.
      */
@@ -720,6 +726,12 @@ declare const Approval: React.ForwardRefExoticComponent<Children & Omit<Omit<Rea
     renderCall?: (call: AgentKToolCall, index: number) => React.ReactNode;
     /** Custom renderer for the plan summary line. */
     renderSummary?: (plan: AgentKPlan) => React.ReactNode;
+    /**
+     * Custom renderer for the planning state (while the model is generating,
+     * before a plan is returned). Replaces the default spinner — use it to show
+     * live progress. Pair with `onProgress` on the agent config.
+     */
+    renderPlanning?: () => React.ReactNode;
     /**
      * Custom renderer for the approve + reject action row. When provided, fully
      * replaces the default `[data-agentk-approval-actions]` block.
@@ -852,7 +864,7 @@ declare const pkg: React.ForwardRefExoticComponent<Children & Omit<Omit<React.De
         ref?: ((instance: HTMLDivElement | null) => void | React.DO_NOT_USE_OR_YOU_WILL_BE_FIRED_CALLBACK_REF_RETURN_VALUES[keyof React.DO_NOT_USE_OR_YOU_WILL_BE_FIRED_CALLBACK_REF_RETURN_VALUES]) | React.RefObject<HTMLDivElement> | null | undefined;
     } & {
         asChild?: boolean;
-    }, "ref">, "onSelect" | "disabled" | "value"> & {
+    }, "ref">, "value" | "onSelect" | "disabled"> & {
         disabled?: boolean;
         onSelect?: (value: string) => void;
         value?: string;
@@ -863,7 +875,7 @@ declare const pkg: React.ForwardRefExoticComponent<Children & Omit<Omit<React.De
         ref?: ((instance: HTMLInputElement | null) => void | React.DO_NOT_USE_OR_YOU_WILL_BE_FIRED_CALLBACK_REF_RETURN_VALUES[keyof React.DO_NOT_USE_OR_YOU_WILL_BE_FIRED_CALLBACK_REF_RETURN_VALUES]) | React.RefObject<HTMLInputElement> | null | undefined;
     } & {
         asChild?: boolean;
-    }, "ref">, "onChange" | "value" | "type"> & {
+    }, "ref">, "value" | "onChange" | "type"> & {
         value?: string;
         onValueChange?: (search: string) => void;
     } & React.RefAttributes<HTMLInputElement>>;
@@ -969,7 +981,7 @@ declare const pkg: React.ForwardRefExoticComponent<Children & Omit<Omit<React.De
         ref?: ((instance: HTMLDivElement | null) => void | React.DO_NOT_USE_OR_YOU_WILL_BE_FIRED_CALLBACK_REF_RETURN_VALUES[keyof React.DO_NOT_USE_OR_YOU_WILL_BE_FIRED_CALLBACK_REF_RETURN_VALUES]) | React.RefObject<HTMLDivElement> | null | undefined;
     } & {
         asChild?: boolean;
-    }, "ref">, "onSelect" | "disabled" | "value"> & {
+    }, "ref">, "value" | "onSelect" | "disabled"> & {
         disabled?: boolean;
         onSelect?: (value: string) => void;
         value?: string;
@@ -1028,6 +1040,12 @@ declare const pkg: React.ForwardRefExoticComponent<Children & Omit<Omit<React.De
         /** Custom renderer for the plan summary line. */
         renderSummary?: (plan: AgentKPlan) => React.ReactNode;
         /**
+         * Custom renderer for the planning state (while the model is generating,
+         * before a plan is returned). Replaces the default spinner — use it to show
+         * live progress. Pair with `onProgress` on the agent config.
+         */
+        renderPlanning?: () => React.ReactNode;
+        /**
          * Custom renderer for the approve + reject action row. When provided, fully
          * replaces the default `[data-agentk-approval-actions]` block.
          */
@@ -1051,7 +1069,7 @@ declare const pkg: React.ForwardRefExoticComponent<Children & Omit<Omit<React.De
     } & {
         asChild?: boolean;
     }, "ref"> & React.RefAttributes<HTMLDivElement>>;
-    IntentTrigger: React.ForwardRefExoticComponent<Children & Omit<ItemProps, "onSelect" | "value"> & {
+    IntentTrigger: React.ForwardRefExoticComponent<Children & Omit<ItemProps, "value" | "onSelect"> & {
         /** The intent string to send when selected. */
         query: string;
     } & React.RefAttributes<HTMLDivElement>>;

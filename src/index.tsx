@@ -2493,6 +2493,12 @@ type ApprovalProps = Children &
     /** Custom renderer for the plan summary line. */
     renderSummary?: (plan: AgentKPlan) => React.ReactNode
     /**
+     * Custom renderer for the planning state (while the model is generating,
+     * before a plan is returned). Replaces the default spinner — use it to show
+     * live progress. Pair with `onProgress` on the agent config.
+     */
+    renderPlanning?: () => React.ReactNode
+    /**
      * Custom renderer for the approve + reject action row. When provided, fully
      * replaces the default `[data-agentk-approval-actions]` block.
      */
@@ -2503,7 +2509,7 @@ type ApprovalProps = Children &
   }
 
 const Approval = React.forwardRef<HTMLDivElement, ApprovalProps>((props, ref) => {
-  const { children, renderCall, renderSummary, renderActions, ...etc } = props
+  const { children, renderCall, renderSummary, renderActions, renderPlanning, ...etc } = props
   const ak = React.useContext(AgentKContext)
   const containerRef = React.useRef<HTMLDivElement>(null)
   const previousFocusRef = React.useRef<HTMLElement | null>(null)
@@ -2513,12 +2519,18 @@ const Approval = React.forwardRef<HTMLDivElement, ApprovalProps>((props, ref) =>
   const fmt = ak.formatToolName
   const labels = ak.labels
 
-  // Show spinner during planning
+  // Show spinner during planning (or a custom progress renderer if provided)
   if (state.mode === 'planning') {
     return (
       <Primitive.div ref={ref} {...etc} data-agentk-planning="">
-        <div data-agentk-spinner="" role="status" aria-label="Loading" />
-        <span data-agentk-planning-text="">{labels.thinking}</span>
+        {renderPlanning ? (
+          renderPlanning()
+        ) : (
+          <>
+            <div data-agentk-spinner="" role="status" aria-label="Loading" />
+            <span data-agentk-planning-text="">{labels.thinking}</span>
+          </>
+        )}
       </Primitive.div>
     )
   }

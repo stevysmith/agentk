@@ -82,7 +82,7 @@ export const anthropicProvider: AgentKProvider = async (prompt, tools, config, s
 
   // Streaming mode
   if (config.stream) {
-    return parseAnthropicStream(res, config.onProviderError, signal)
+    return parseAnthropicStream(res, config.onProviderError, signal, config.onProgress)
   }
 
   // Standard mode
@@ -193,6 +193,7 @@ async function parseAnthropicStream(
   res: Response,
   onError?: (error: Error) => void,
   signal?: AbortSignal,
+  onProgress?: (chars: number) => void,
 ): Promise<AgentKPlan> {
   if (!res.body) {
     throw new Error('Anthropic streaming response has no body')
@@ -200,6 +201,7 @@ async function parseAnthropicStream(
 
   const reader = res.body.getReader()
   const decoder = new TextDecoder()
+  let streamedChars = 0
 
   // Track content blocks as they stream in
   const blocks: Array<{
@@ -284,9 +286,15 @@ async function parseAnthropicStream(
               if (!block) break
 
               if (event.delta?.type === 'text_delta' && block.type === 'text') {
-                block.text = (block.text || '') + (event.delta.text || '')
+                const t = event.delta.text || ''
+                block.text = (block.text || '') + t
+                streamedChars += t.length
+                onProgress?.(streamedChars)
               } else if (event.delta?.type === 'input_json_delta' && block.type === 'tool_use') {
-                block.inputJson = (block.inputJson || '') + (event.delta.partial_json || '')
+                const j = event.delta.partial_json || ''
+                block.inputJson = (block.inputJson || '') + j
+                streamedChars += j.length
+                onProgress?.(streamedChars)
               }
               // Skip thinking_delta — we don't track thinking blocks
               break
