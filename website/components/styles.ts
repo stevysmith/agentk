@@ -236,9 +236,10 @@ export const showcaseStyles = `
 
   .header-right {
     display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 12px;
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
     padding-top: 4px;
   }
 
@@ -295,7 +296,7 @@ export const showcaseStyles = `
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    padding: 0 12px;
+    padding: 0 14px;
     height: 40px;
     border-radius: 9999px;
     font-size: 14px;
@@ -303,12 +304,13 @@ export const showcaseStyles = `
     color: var(--gray12);
     text-decoration: none;
     border: none;
-    background: transparent;
+    background: var(--grayA3);
+    box-shadow: inset 0 0 0 1px var(--grayA4);
     transition: background 150ms ease, transform 150ms ease;
   }
 
   .github-link:hover {
-    background: var(--grayA3);
+    background: var(--grayA5);
   }
 
   /* ─── Demo area ─── */
