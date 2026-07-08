@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { Command, useAgentK, type AgentKToolDef, type ToolExecution } from 'agentk'
+import { Command, useAgentK, useWebMCPRegistration, type AgentKToolDef, type ToolExecution } from 'agentk'
 
 /* ─────────────────────────────────────────────────────────
  * agentk × Linear demo
@@ -210,6 +210,9 @@ export default function LinearDemo() {
     },
     [],
   )
+
+  // Expose the same catalog to WebMCP agents (retries until the API appears).
+  useWebMCPRegistration(TOOLS, executeTool, { prefix: 'linear_' })
 
   const handleModeChange = useCallback((mode: string) => {
     if (mode === 'result') {

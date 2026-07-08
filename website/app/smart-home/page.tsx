@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { Command, useAgentK, type AgentKToolDef, type ToolExecution, type AgentKAgentConfig } from 'agentk'
+import { Command, useAgentK, useWebMCPRegistration, type AgentKToolDef, type ToolExecution, type AgentKAgentConfig } from 'agentk'
 
 /* ─────────────────────────────────────────────────────────
  * Smart Home Demo — Multi-step Plans + Approval Flow
@@ -546,6 +546,9 @@ export default function SmartHomePage() {
     },
     [flashCard, addFeedEntry],
   )
+
+  // Expose the same catalog to WebMCP agents (retries until the API appears).
+  useWebMCPRegistration(TOOLS, executeTool, { prefix: 'smarthome_' })
 
   // Custom provider that simulates LLM responses
   const providerFn = useCallback(
