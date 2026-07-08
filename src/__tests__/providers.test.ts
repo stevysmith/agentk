@@ -149,7 +149,7 @@ describe('Anthropic provider', () => {
 
     const body = JSON.parse(callArgs[1].body)
     expect(body.model).toBe('claude-sonnet-4-20250514')
-    expect(body.max_tokens).toBe(1024)
+    expect(body.max_tokens).toBe(8192)
     expect(body.messages).toEqual([{ role: 'user', content: 'set brightness to 50' }])
     expect(body.tools).toHaveLength(2)
     expect(body.tools[0].name).toBe('set_brightness')

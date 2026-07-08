@@ -1503,11 +1503,11 @@ describe('Agent planning & approval', () => {
     })
 
     await waitFor(() => {
-      expect(screen.getByText(/LLM is down/)).toBeInTheDocument()
+      expect(screen.getAllByText(/LLM is down/).length).toBeGreaterThanOrEqual(1)
     })
   })
 
-  it('text-only LLM response (no tool calls) returns to browse', async () => {
+  it('text-only LLM response (no tool calls) surfaces the reply as a result', async () => {
     const textOnlyPlan = { calls: [], summary: 'I cannot help with that.' }
     const providerFn = vi.fn(async () => textOnlyPlan)
     const onModeChange = vi.fn()
@@ -1525,12 +1525,13 @@ describe('Agent planning & approval', () => {
       fireEvent.keyDown(input, { key: 'Enter' })
     })
 
-    // Should transition: browse → planning → browse (not to approval)
+    // Should transition: browse → planning → result (the reply is shown, not dropped)
     await waitFor(() => {
       const modes = onModeChange.mock.calls.map((c: any) => c[0])
       expect(modes).toContain('planning')
-      expect(modes[modes.length - 1]).toBe('browse')
+      expect(modes[modes.length - 1]).toBe('result')
     })
+    expect(screen.getAllByText(/I cannot help with that\./).length).toBeGreaterThanOrEqual(1)
   })
 
   it('plan halts on tool error mid-sequence', async () => {
