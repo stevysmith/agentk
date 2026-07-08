@@ -4,6 +4,8 @@ A command palette for the agentic web. Extends [cmdk](https://github.com/pacocou
 
 Define your tools once as JSON Schema. Users browse and execute them from a command palette. AI agents discover them via [WebMCP](https://chromestatus.com/feature/5261274379001856). Both share the same interface — with the human always in control.
 
+**[Live demo](https://agentk-ya5h.onrender.com/)** · **[npm](https://www.npmjs.com/package/@stevysmith/agentk)** — running in production on the [Stacktree](https://stacktr.ee) dashboard, where the same catalog serves the ⌘K palette and in-browser agents.
+
 ## Install
 
 ```bash

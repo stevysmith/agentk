@@ -71,6 +71,7 @@
     "type": "git",
     "url": "https://github.com/stevysmith/agentk"
   },
+  "homepage": "https://agentk-ya5h.onrender.com",
   "author": "Steve Smith",
   "keywords": [
     "command-palette",

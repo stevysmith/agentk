@@ -298,12 +298,12 @@ export default function ShowcasePage() {
 
   const handleCopy = useCallback(async () => {
     try {
-      await navigator.clipboard.writeText('npm install agentk')
+      await navigator.clipboard.writeText('npm install @stevysmith/agentk')
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     } catch {
       const textarea = document.createElement('textarea')
-      textarea.value = 'npm install agentk'
+      textarea.value = 'npm install @stevysmith/agentk'
       document.body.appendChild(textarea)
       textarea.select()
       document.execCommand('copy')
@@ -356,7 +356,7 @@ export default function ShowcasePage() {
             <div className="header-left">
               <div className="title-row">
                 <h1 className="page-title">agentk</h1>
-                <span className="version-badge">v0.1.0</span>
+                <span className="version-badge">v0.3.1</span>
               </div>
               <p className="tagline">A command palette that understands natural language.</p>
               <p className="tagline-sub">Browse tools directly or let the built-in agent orchestrate them.</p>
@@ -371,7 +371,7 @@ export default function ShowcasePage() {
                   </span>
                 ) : (
                   <>
-                    <span className="install-text">npm install agentk</span>
+                    <span className="install-text">npm install @stevysmith/agentk</span>
                     <span className="copy-icon-wrap">
                       <CopyIcon />
                     </span>
