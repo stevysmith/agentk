@@ -11,6 +11,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en">
       <head>
         <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;500&display=swap" rel="stylesheet" />
+        {/* WebMCP origin trial (stacktr.ee, subdomain-matching) so Chrome
+            enables document.modelContext on agentk.stacktr.ee and agents can
+            call the demo tools. Renew before 2026-11-17. */}
+        <meta
+          httpEquiv="origin-trial"
+          content="AtwsjYQEU4rBk9go+qs0qikwxSR0KgHjwEI+pwJtYsdwnsSaWWPn4DJCyRlVb+wZo6Tz87dYpNKu5ROQKyLJ0AkAAABdeyJvcmlnaW4iOiJodHRwczovL3N0YWNrdHIuZWU6NDQzIiwiZmVhdHVyZSI6IldlYk1DUCIsImV4cGlyeSI6MTc5NDg3MzYwMCwiaXNTdWJkb21haW4iOnRydWV9"
+        />
       </head>
       <body>{children}</body>
     </html>
