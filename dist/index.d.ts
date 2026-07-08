@@ -782,6 +782,22 @@ declare const ActivityFeed: React.ForwardRefExoticComponent<Children & Omit<Omit
  * }
  * ```
  */
+/**
+ * Register tools with the page's WebMCP surface, resiliently.
+ *
+ * Handles the three realities of the origin-trial era: the API may live on
+ * document.modelContext (Chrome 150+), navigator.modelContext (older), or
+ * arrive LATE (inspector extensions inject it after mount). We poll briefly
+ * until a surface appears, register, and clean up on unmount. Execute
+ * callbacks read through a ref, so tools never capture stale state.
+ */
+declare function useWebMCPRegistration(tools: AgentKToolDef[], onToolExecute: (name: string, params: Record<string, any>) => Promise<any> | any, options?: {
+    prefix?: string;
+    retryMs?: number;
+    maxWaitMs?: number;
+}): {
+    active: boolean;
+};
 declare function useWebMCPTools(): {
     tools: AgentKToolDef[];
     available: boolean;
@@ -1097,4 +1113,4 @@ declare function useAgentK(): AgentKContextValue;
 
 declare function useCmdk<T = any>(selector: (state: State) => T): T;
 
-export { type ActivityEntry, type ActivityFeedProps, type AgentHintProps, AgentKAgentConfig, type AgentKLabels, type AgentKMode, AgentKPlan, AgentKToolCall, type AgentKToolDef, type ApprovalProps, pkg as Command, ActivityFeed as CommandActivityFeed, AgentHint as CommandAgentHint, Approval as CommandApproval, Dialog as CommandDialog, Empty as CommandEmpty, type CommandFilter, CommandGroup, Input as CommandInput, IntentTrigger as CommandIntentTrigger, Item as CommandItem, List as CommandList, Loading as CommandLoading, type CommandProps, Command as CommandRoot, Separator as CommandSeparator, ToolItem as CommandTool, ToolForm as CommandToolForm, ToolResult as CommandToolResult, type DialogProps, type EmptyProps, type GroupProps, type InputProps, type IntentTriggerProps, type ItemProps, type ListProps, type LoadingProps, type SeparatorProps, type ToolExecution, type ToolFormProps, type ToolInputSchema, type ToolItemProps, type ToolResultProps, defaultFilter, useAgentK, useCmdk as useCommandState, useWebMCPTools };
+export { type ActivityEntry, type ActivityFeedProps, type AgentHintProps, AgentKAgentConfig, type AgentKLabels, type AgentKMode, AgentKPlan, AgentKToolCall, type AgentKToolDef, type ApprovalProps, pkg as Command, ActivityFeed as CommandActivityFeed, AgentHint as CommandAgentHint, Approval as CommandApproval, Dialog as CommandDialog, Empty as CommandEmpty, type CommandFilter, CommandGroup, Input as CommandInput, IntentTrigger as CommandIntentTrigger, Item as CommandItem, List as CommandList, Loading as CommandLoading, type CommandProps, Command as CommandRoot, Separator as CommandSeparator, ToolItem as CommandTool, ToolForm as CommandToolForm, ToolResult as CommandToolResult, type DialogProps, type EmptyProps, type GroupProps, type InputProps, type IntentTriggerProps, type ItemProps, type ListProps, type LoadingProps, type SeparatorProps, type ToolExecution, type ToolFormProps, type ToolInputSchema, type ToolItemProps, type ToolResultProps, defaultFilter, useAgentK, useCmdk as useCommandState, useWebMCPRegistration, useWebMCPTools };

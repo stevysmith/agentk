@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { Command, useAgentK, type AgentKToolDef, type ToolExecution, type AgentKAgentConfig } from 'agentk'
+import { Command, useAgentK, useWebMCPRegistration, type AgentKToolDef, type ToolExecution, type AgentKAgentConfig } from 'agentk'
 
 // ─────────────────────────────────────────────────────────
 // SVG Icons
@@ -602,6 +602,9 @@ export default function DevOpsDemo() {
     },
     [runPipeline],
   )
+
+  // Expose the same catalog to WebMCP agents (retries until the API appears).
+  useWebMCPRegistration(TOOLS, executeTool, { prefix: 'devops_' })
 
   // Agent config — custom provider simulates LLM
   const agentConfig: AgentKAgentConfig = {

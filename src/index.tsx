@@ -2736,6 +2736,103 @@ ActivityFeed.displayName = 'Command.ActivityFeed'
  * }
  * ```
  */
+
+/**
+ * Register tools with the page's WebMCP surface, resiliently.
+ *
+ * Handles the three realities of the origin-trial era: the API may live on
+ * document.modelContext (Chrome 150+), navigator.modelContext (older), or
+ * arrive LATE (inspector extensions inject it after mount). We poll briefly
+ * until a surface appears, register, and clean up on unmount. Execute
+ * callbacks read through a ref, so tools never capture stale state.
+ */
+export function useWebMCPRegistration(
+  tools: AgentKToolDef[],
+  onToolExecute: (name: string, params: Record<string, any>) => Promise<any> | any,
+  options?: { prefix?: string; retryMs?: number; maxWaitMs?: number },
+) {
+  const execRef = React.useRef(onToolExecute)
+  execRef.current = onToolExecute
+  const [active, setActive] = React.useState(false)
+
+  React.useEffect(() => {
+    if (typeof window === 'undefined' || tools.length === 0) return
+    const retryMs = options?.retryMs ?? 250
+    const maxWaitMs = options?.maxWaitMs ?? 10000
+    const prefix = options?.prefix ?? ''
+    let cancelled = false
+    let registered: { mc: any; names: string[] } | null = null
+    const controller = new AbortController()
+
+    const tryRegister = () => {
+      const mc: any = getModelContext()
+      if (!mc || typeof mc.registerTool !== 'function') return false
+      const names: string[] = []
+      for (const tool of tools) {
+        const name = prefix + tool.name
+        try {
+          Promise.resolve(
+            mc.registerTool(
+              {
+                name,
+                description: tool.description,
+                ...(tool.inputSchema ? { inputSchema: tool.inputSchema } : {}),
+                execute: async (params: Record<string, any>) => {
+                  try {
+                    const result = await execRef.current(tool.name, params)
+                    const text = typeof result === 'string' ? result : JSON.stringify(result ?? { ok: true })
+                    return { content: [{ type: 'text', text }] }
+                  } catch (err: any) {
+                    return { content: [{ type: 'text', text: `Error: ${err?.message ?? String(err)}` }] }
+                  }
+                },
+              },
+              { signal: controller.signal },
+            ),
+          ).catch(() => {})
+          names.push(name)
+        } catch {}
+      }
+      registered = { mc, names }
+      setActive(true)
+      return true
+    }
+
+    if (!tryRegister()) {
+      // The API can arrive after mount (origin-trial timing, inspector
+      // extensions injecting their surface). Poll briefly rather than
+      // giving up at first paint.
+      const startedAt = Date.now()
+      const iv = window.setInterval(() => {
+        if (cancelled || Date.now() - startedAt > maxWaitMs) {
+          window.clearInterval(iv)
+          return
+        }
+        if (tryRegister()) window.clearInterval(iv)
+      }, retryMs)
+      return () => {
+        cancelled = true
+        window.clearInterval(iv)
+        controller.abort()
+        if (registered?.mc?.unregisterTool) {
+          for (const n of registered.names) { try { registered.mc.unregisterTool(n) } catch {} }
+        }
+      }
+    }
+
+    return () => {
+      cancelled = true
+      controller.abort()
+      if (registered?.mc?.unregisterTool) {
+        for (const n of registered.names) { try { registered.mc.unregisterTool(n) } catch {} }
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tools])
+
+  return { active }
+}
+
 export function useWebMCPTools() {
   const [tools, setTools] = React.useState<AgentKToolDef[]>([])
   const [available, setAvailable] = React.useState(false)

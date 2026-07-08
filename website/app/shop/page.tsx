@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { Command, useAgentK, type AgentKToolDef, type ToolExecution, type AgentKAgentConfig } from 'agentk'
+import { Command, useAgentK, useWebMCPRegistration, type AgentKToolDef, type ToolExecution, type AgentKAgentConfig } from 'agentk'
 
 // ─────────────────────────────────────────────────────────
 // SVG Icons
@@ -431,37 +431,13 @@ export default function ShopPage() {
   const executeRef = useRef(executeTool)
   executeRef.current = executeTool
 
-  useEffect(() => {
-    const mc = (navigator as any).modelContext
-    if (!mc) return
-
-    setWebmcpActive(true)
-    const allTools = [...TOOLS, ...QUICK_ACTIONS]
-
-    for (const tool of allTools) {
-      mc.registerTool({
-        name: tool.name,
-        description: tool.description,
-        ...(tool.inputSchema ? { inputSchema: tool.inputSchema } : {}),
-        execute: async (params: Record<string, any>) => {
-          try {
-            const result = await executeRef.current(tool.name, params)
-            const msgFn = RESULT_MESSAGES[tool.name]
-            const text = msgFn ? msgFn({ ...params, ...result }) : JSON.stringify(result)
-            return { content: [{ type: 'text', text }] }
-          } catch (err: any) {
-            return { content: [{ type: 'text', text: `Error: ${err.message}` }] }
-          }
-        },
-      })
-    }
-
-    return () => {
-      for (const tool of allTools) {
-        try { mc.unregisterTool(tool.name) } catch {}
-      }
-    }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  const allWebMCPTools = useRef([...TOOLS, ...QUICK_ACTIONS]).current
+  const { active: webmcpHookActive } = useWebMCPRegistration(allWebMCPTools, async (name, params) => {
+    const result = await executeRef.current(name, params)
+    const msgFn = RESULT_MESSAGES[name]
+    return msgFn ? msgFn({ ...params, ...result }) : JSON.stringify(result)
+  })
+  useEffect(() => { if (webmcpHookActive) setWebmcpActive(true) }, [webmcpHookActive])
 
   const handleModeChange = useCallback((mode: string) => {
     if (mode === 'result') setTimeout(() => setOpen(false), 2500)
