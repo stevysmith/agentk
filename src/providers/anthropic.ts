@@ -24,7 +24,7 @@ import { toToolSchema, buildSystemPrompt, buildFallbackSummary } from './utils'
  *
  * @example
  * ```ts
- * import { anthropicProvider } from 'agentk/providers/anthropic'
+ * import { anthropicProvider } from '@stevysmith/agentk/providers/anthropic'
  *
  * const plan = await anthropicProvider(
  *   'Search for flights to Tokyo',

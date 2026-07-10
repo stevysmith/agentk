@@ -24,7 +24,7 @@ import { toToolSchema, buildSystemPrompt, buildFallbackSummary } from './utils'
  *
  * @example
  * ```ts
- * import { googleProvider } from 'agentk/providers/google'
+ * import { googleProvider } from '@stevysmith/agentk/providers/google'
  *
  * const plan = await googleProvider(
  *   'Turn on the lights',
