@@ -2,7 +2,7 @@
 
 A command palette for the agentic web. Extends [cmdk](https://github.com/pacocoursey/cmdk) with tool execution, auto-generated forms, WebMCP registration, and human-in-the-loop agent mode.
 
-Define your tools once as JSON Schema. Users browse and execute them from a command palette. AI agents discover them via [WebMCP](https://chromestatus.com/feature/5261274379001856). Both share the same interface — with the human always in control.
+Define your tools once as JSON Schema. Users browse and execute them from a command palette. AI agents discover them via [WebMCP](https://chromestatus.com/feature/5261274379001856). Both share the same interface — human-in-the-loop by design, with an opt-in approval gate.
 
 On-page agent experiences usually mean high fidelity at the cost of a bespoke integration to maintain. agentk collapses that trade: one tool catalog gives humans a palette and agents a WebMCP surface, so the on-page fidelity comes free with the UI you were building anyway.
 
