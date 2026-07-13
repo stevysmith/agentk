@@ -356,10 +356,10 @@ export default function ShowcasePage() {
             <div className="header-left">
               <div className="title-row">
                 <h1 className="page-title">agentk</h1>
-                <span className="version-badge">v0.3.1</span>
+                <span className="version-badge">v0.4.1</span>
               </div>
               <p className="tagline">A command palette that understands natural language.</p>
-              <p className="tagline-sub">Browse tools directly or let the built-in agent orchestrate them.</p>
+              <p className="tagline-sub">Browse tools directly or let the built-in agent orchestrate them &mdash; instant by default, with an approval screen wherever you opt in.</p>
               <p className="tagline-traits">Fast, composable, unstyled.</p>
             </div>
             <div className="header-right">

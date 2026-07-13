@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { Command, useAgentK, useWebMCPRegistration, type AgentKToolDef, type ToolExecution, type AgentKAgentConfig } from 'agentk'
+import { SourceLink } from '../../components/source-link'
 
 // ─────────────────────────────────────────────────────────
 // SVG Icons
@@ -852,7 +853,7 @@ export default function DevOpsDemo() {
 
       {/* ── Hint ── */}
       <p className="devops-hint">
-        Press <kbd>&#8984;</kbd><kbd>K</kbd> to open the command palette. Try &ldquo;deploy to production&rdquo; or &ldquo;scale up the API&rdquo;.
+        Press <kbd>&#8984;</kbd><kbd>K</kbd> to open the command palette. Try &ldquo;deploy to production&rdquo; or &ldquo;scale up the API&rdquo;.<SourceLink file="website/app/devops/page.tsx" />
       </p>
 
       {/* ── Command palette ── */}

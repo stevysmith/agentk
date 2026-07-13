@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { Command, useAgentK, useWebMCPRegistration, type AgentKToolDef, type ToolExecution, type AgentKAgentConfig } from 'agentk'
+import { SourceLink } from '../../components/source-link'
 
 // ─────────────────────────────────────────────────────────
 // SVG Icons
@@ -623,7 +624,7 @@ export default function ShopPage() {
 
       {/* ── Hint ── */}
       <p className="docs-hint">
-        This store exposes <strong>{toolCount} WebMCP tools</strong>. Press <kbd>⌘</kbd><kbd>K</kbd> to shop smarter.
+        This store exposes <strong>{toolCount} WebMCP tools</strong>. Press <kbd>⌘</kbd><kbd>K</kbd> to shop smarter.<SourceLink file="website/app/shop/page.tsx" />
       </p>
 
       {/* ── Palette ── */}

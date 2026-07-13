@@ -2247,3 +2247,52 @@ body { font-family: var(--font); -webkit-font-smoothing: antialiased; min-height
     width: 100vw;
   }
 }
+
+/* ── View-source links (demo pages) ── */
+
+.source-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: 10px;
+  color: inherit;
+  text-decoration: none;
+  opacity: 0.55;
+  transition: opacity 0.15s ease;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.source-link:hover,
+.source-link:focus-visible {
+  opacity: 1;
+}
+
+.source-link svg {
+  width: 12px;
+  height: 12px;
+}
+
+.source-link span {
+  border-bottom: 1px solid transparent;
+}
+
+.source-link:hover span {
+  border-bottom-color: currentColor;
+}
+
+.source-standalone {
+  position: fixed;
+  bottom: 20px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 12px;
+  margin: 0;
+  pointer-events: none;
+}
+
+.source-standalone .source-link {
+  margin-left: 0;
+  pointer-events: auto;
+}

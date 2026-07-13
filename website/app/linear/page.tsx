@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { Command, useAgentK, useWebMCPRegistration, type AgentKToolDef, type ToolExecution } from 'agentk'
+import { SourceLink } from '../../components/source-link'
 
 /* ─────────────────────────────────────────────────────────
  * agentk × Linear demo
@@ -265,6 +266,10 @@ export default function LinearDemo() {
           <kbd>⌘</kbd><kbd>K</kbd>
         </button>
       </div>
+
+      <p className="source-standalone">
+        <SourceLink file="website/app/linear/page.tsx" />
+      </p>
 
       {/* Palette */}
       <div className="linear">

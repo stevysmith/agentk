@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { Command, useAgentK, useWebMCPRegistration, type AgentKToolDef, type ToolExecution, type AgentKAgentConfig } from 'agentk'
+import { SourceLink } from '../../components/source-link'
 
 /* ─────────────────────────────────────────────────────────
  * Smart Home Demo — Multi-step Plans + Approval Flow
@@ -809,7 +810,7 @@ export default function SmartHomePage() {
 
       {/* Hint */}
       <p className="sh-hint">
-        Press <kbd>⌘</kbd><kbd>K</kbd> to control your home with natural language. Try <strong>&quot;set the mood for movie night&quot;</strong>
+        Press <kbd>⌘</kbd><kbd>K</kbd> to control your home with natural language. Try <strong>&quot;set the mood for movie night&quot;</strong><SourceLink file="website/app/smart-home/page.tsx" />
       </p>
 
       {/* Command palette */}
