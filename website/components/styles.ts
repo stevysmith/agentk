@@ -1615,6 +1615,30 @@ export const showcaseStyles = `
     pointer-events: none;
   }
 
+  .demo-cta-row {
+    display: flex;
+    justify-content: center;
+    margin-top: 22px;
+  }
+  .demo-cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 0 18px;
+    height: 38px;
+    border-radius: 9999px;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--gray12);
+    text-decoration: none;
+    background: var(--grayA3);
+    box-shadow: inset 0 0 0 1px var(--grayA4);
+    transition: background 150ms ease;
+  }
+  .demo-cta:hover { background: var(--grayA5); }
+  .demo-cta svg { transition: transform 150ms ease; }
+  .demo-cta:hover svg { transform: translateX(2px); }
+
   .tab-demo-link {
     display: flex;
     align-items: center;

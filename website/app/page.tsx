@@ -479,6 +479,34 @@ export default function ShowcasePage() {
             </button>
           </motion.div>
 
+          {/* ─── Full-demo CTA ─── */}
+          <motion.div
+            className="demo-cta-row"
+            initial={{ opacity: 0, y: 8 }}
+            animate={mounted ? { opacity: 1, y: 0 } : {}}
+            transition={{ duration: 0.5, delay: 0.45, ease }}
+          >
+            <AnimatePresence mode="wait">
+              {(() => {
+                const theme = THEMES.find(t => t.id === activeTheme)!
+                return (
+                  <motion.a
+                    key={`cta-${activeTheme}`}
+                    href={theme.demoUrl}
+                    className="demo-cta"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.15 }}
+                  >
+                    {theme.demoLabel.replace('Try the', 'Try the full')}
+                    <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  </motion.a>
+                )
+              })()}
+            </AnimatePresence>
+          </motion.div>
+
           {/* ─── Code snippet ─── */}
           <motion.div
             className="code-area"
