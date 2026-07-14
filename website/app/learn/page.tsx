@@ -218,13 +218,33 @@ export default function LearnPage() {
     else if ('modelContext' in navigator) setSurface('navigator.modelContext')
   }, [registration.active, stage])
 
-  const discoveredLearn = discovered.filter((t) => t.name.startsWith(WEBMCP_PREFIX))
+  // Origin-trial surfaces vary; treat everything read back from the browser
+  // as untrusted shape-wise and fall back to the known catalog on surprise.
+  const discoveredLearn = discovered.filter(
+    (t) => typeof t?.name === 'string' && t.name.startsWith(WEBMCP_PREFIX),
+  )
+  let liveTools: WebMCPPanel['tools'] | null = null
+  if (discoveredLearn.length > 0) {
+    try {
+      liveTools = discoveredLearn.map((t) => ({
+        name: t.name,
+        description: t.description,
+        params: summarizeSchema(t.inputSchema),
+      }))
+    } catch {
+      liveTools = null
+    }
+  }
   const webmcp: WebMCPPanel = {
-    mode: discoveredLearn.length > 0 ? 'live-read' : registration.active ? 'live-registered' : 'simulated',
+    mode: liveTools ? 'live-read' : registration.active ? 'live-registered' : 'simulated',
     surface,
-    tools: (discoveredLearn.length > 0
-      ? discoveredLearn.map((t) => ({ name: t.name, description: t.description, params: summarizeSchema(t.inputSchema) }))
-      : LEARN_TOOLS.map((t) => ({ name: WEBMCP_PREFIX + t.name, description: t.description, params: summarizeSchema(t.inputSchema) }))),
+    tools:
+      liveTools ??
+      LEARN_TOOLS.map((t) => ({
+        name: WEBMCP_PREFIX + t.name,
+        description: t.description,
+        params: summarizeSchema(t.inputSchema),
+      })),
   }
 
   // ─── Approval flow (stage 5) ───

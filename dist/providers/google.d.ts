@@ -17,7 +17,7 @@ import { c as AgentKProvider } from '../types-CXxYj9tM.js';
  *
  * @example
  * ```ts
- * import { googleProvider } from 'agentk/providers/google'
+ * import { googleProvider } from '@stevysmith/agentk/providers/google'
  *
  * const plan = await googleProvider(
  *   'Turn on the lights',

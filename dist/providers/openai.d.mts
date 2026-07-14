@@ -16,7 +16,7 @@ import { c as AgentKProvider } from '../types-CXxYj9tM.mjs';
  *
  * @example
  * ```ts
- * import { openaiProvider } from 'agentk/providers/openai'
+ * import { openaiProvider } from '@stevysmith/agentk/providers/openai'
  *
  * const plan = await openaiProvider(
  *   'Summarize recent orders',

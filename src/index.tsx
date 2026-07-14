@@ -51,7 +51,7 @@ function getModelContextTesting(): WebMCPModelContextTesting | undefined {
   return undefined
 }
 
-function webMCPListTools(): any[] | undefined {
+function webMCPListTools(): any | undefined {
   const mc = getModelContext()
   if (mc?.getTools) {
     try {
@@ -64,6 +64,16 @@ function webMCPListTools(): any[] | undefined {
       return testing.listTools()
     } catch {}
   }
+  return undefined
+}
+
+// getTools() has no settled shape across origin-trial builds: it may return
+// an array, a Promise of one, or an envelope like { tools: [...] }. Anything
+// else is treated as "no listing available" rather than thrown at the caller.
+function normalizeToolList(value: any): any[] | undefined {
+  if (!value) return undefined
+  if (Array.isArray(value)) return value
+  if (Array.isArray(value.tools)) return value.tools
   return undefined
 }
 
@@ -2840,13 +2850,22 @@ export function useWebMCPTools() {
   const scan = React.useCallback(() => {
     const discovered = webMCPListTools()
     if (!discovered) return
-    setTools(
-      discovered.map((t: any) => ({
-        name: t.name,
-        description: t.description,
-        inputSchema: t.inputSchema,
-      })),
-    )
+    const apply = (value: any) => {
+      const list = normalizeToolList(value)
+      if (!list) return
+      setTools(
+        list.map((t: any) => ({
+          name: t?.name,
+          description: t?.description,
+          inputSchema: t?.inputSchema,
+        })),
+      )
+    }
+    if (typeof discovered.then === 'function') {
+      Promise.resolve(discovered).then(apply).catch(() => {})
+    } else {
+      apply(discovered)
+    }
   }, [])
 
   React.useEffect(() => {
