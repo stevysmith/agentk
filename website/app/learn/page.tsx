@@ -864,15 +864,6 @@ const learnStyles = `
                 margin var(--skin-ms, 420ms) var(--ease-soft);
   }
 
-  /* stage 2 — palette-row skin */
-  .ls-rail[data-stage="2"] .ls-row {
-    background: transparent;
-    border-color: transparent;
-    box-shadow: none;
-    padding: 8px 10px;
-    margin-bottom: 2px;
-  }
-
   /* stage 3 — agent's-eye rows (hairline dividers, no card) */
   .ls-rail[data-stage="3"] .ls-row {
     background: transparent;
@@ -908,7 +899,6 @@ const learnStyles = `
     text-align: left;
     cursor: default;
   }
-  .ls-rail[data-stage="2"] .ls-row-head { cursor: pointer; }
 
   .ls-row-name { font-family: var(--mono); font-size: 13px; font-weight: 600; display: inline-flex; align-items: baseline; }
   /* namespace prefix: inherits the tool accent and rests at 0.55 opacity
@@ -929,27 +919,10 @@ const learnStyles = `
   }
   .ls-row-status[data-show] { width: 24px; opacity: 1; }
 
-  /* palette chevron — width-collapsed except stage 2 */
-  .ls-row-chevron {
-    display: inline-flex;
-    margin-left: auto;
-    overflow: hidden;
-    flex-shrink: 0;
-    width: 0;
-    opacity: 0;
-    color: var(--text-3);
-    transition: width var(--chrome-ms, 260ms) var(--ease-soft),
-                opacity var(--chrome-ms, 260ms) var(--ease-soft),
-                transform var(--chrome-ms, 260ms) var(--ease-soft);
-  }
-  .ls-row-chevron[data-show] { width: 14px; opacity: 1; }
-  .ls-row-chevron[data-open] { transform: rotate(90deg); }
-
   .ls-row-desc { font-size: 12px; color: var(--text-2); padding-top: 4px; }
   .ls-row-schema { display: flex; flex-wrap: wrap; gap: 6px; padding-top: 8px; }
   .ls-row-call { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding-top: 8px; }
   .ls-row-note { font-size: 11px; color: var(--text-3); margin-left: auto; }
-  .ls-rail-empty { font-size: 12.5px; color: var(--text-3); padding: 6px 4px 10px; }
 
   .ls-param {
     display: inline-flex;
@@ -969,79 +942,23 @@ const learnStyles = `
   .ls-param--call { background: rgba(59, 130, 246, 0.08); border-color: rgba(59, 130, 246, 0.25); font-size: 11px; }
   .ls-call-value { color: var(--accent); font-weight: 600; }
 
-  /* ── palette chrome (stage 2) ── */
-
-  .ls-palette-input {
-    width: 100%;
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    padding: 9px 12px;
-    color: var(--text);
-    font-family: var(--font);
-    font-size: 13px;
+  /* ── real <Command> palette embed (stage 2) ──
+     Stage 2 renders the ACTUAL shipped agentk <Command> (see
+     components/learn/stage.tsx → PaletteZone), so its chrome comes from the
+     global [cmdk-*] / [data-agentk-*] rules in globals.css. These overrides
+     only reseat it INSIDE the stage: drop the modal drop-shadow, sit it on
+     the card surface, and tighten padding to the stage's scale. The form
+     itself (enum → dropdown, bounded number → slider) is the component's own
+     Command.ToolForm — untouched. */
+  .ls-palette-embed [cmdk-root] {
+    background: var(--bg-card);
+    box-shadow: none;
   }
-  .ls-palette-input::placeholder { color: var(--text-3); }
-  .ls-palette-group {
-    font-size: 10.5px;
-    font-weight: 600;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--text-3);
-    padding: 12px 2px 0;
-  }
-
-  /* inline schema-generated form (stage 2) */
-  .ls-row-form { display: flex; flex-direction: column; gap: 10px; padding: 10px 2px 4px; }
-  .ls-form-field { display: flex; flex-direction: column; gap: 5px; }
-  .ls-form-label {
-    font-family: var(--mono);
-    font-size: 11px;
-    color: var(--text-2);
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-  }
-  .ls-form-value { color: var(--tool-accent, var(--accent)); font-variant-numeric: tabular-nums; }
-  .ls-form-select,
-  .ls-form-text {
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    color: var(--text);
-    font-family: var(--font);
-    font-size: 13px;
-    padding: 7px 9px;
-  }
-  .ls-form-range { width: 100%; accent-color: var(--tool-accent, var(--accent)); }
-  /* Run is deliberately NEUTRAL (near-white, dark text): blue is reserved
-     for tool identity, and this button lives inside whichever tool's
-     accent context is open. Transparent border so data-ran never shifts
-     layout. */
-  .ls-run-btn {
-    align-self: flex-start;
-    padding: 6px 16px;
-    border: 1px solid transparent;
-    border-radius: 6px;
-    background: #ececec;
-    color: #141414;
-    font-family: var(--font);
-    font-size: 12.5px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: background 120ms ease, color 120ms ease, border-color 120ms ease, transform 80ms ease;
-  }
-  .ls-run-btn:hover { background: #ffffff; }
-  .ls-run-btn:active { transform: scale(0.98); }
-  /* confirmation = green check in a neutral pill — the same success
-     grammar as the approval flow's executed checks */
-  .ls-run-btn[data-ran],
-  .ls-run-btn[data-ran]:hover {
-    background: rgba(255,255,255,0.05);
-    border-color: var(--border);
-    color: var(--text-2);
-  }
-  .ls-run-check { color: var(--green); font-weight: 600; }
+  .ls-palette-embed [cmdk-input] { padding: 12px 16px; font-size: 14px; }
+  .ls-palette-embed [cmdk-list] { max-height: 260px; padding: 6px; }
+  .ls-palette-embed [data-agentk-form],
+  .ls-palette-embed [data-agentk-result] { padding: 0 16px 16px; }
+  .ls-palette-embed [data-agentk-form-heading] { padding: 14px 0; margin-bottom: 16px; }
 
   /* ── agent chrome (stage 3) ── */
 
@@ -1308,14 +1225,11 @@ const learnStyles = `
     .ls-row-clip,
     .ls-row,
     .ls-row-status,
-    .ls-row-chevron,
-    .ls-run-btn,
     .ls-approval-gate,
     .ls-ghost-btn {
       transition: none;
     }
     .ls-device:hover { transform: none; }
-    .ls-run-btn:active { transform: none; }
     .ls-approve-dock [data-agentk-approval-approve]:active,
     .ls-approve-dock [data-agentk-approval-reject]:active { transform: none; }
   }

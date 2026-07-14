@@ -3,13 +3,12 @@
 import {
   useEffect,
   useMemo,
-  useRef,
   useState,
   type CSSProperties,
-  type FormEvent,
   type ReactNode,
 } from 'react'
 import { motion, AnimatePresence, useSpring, useTransform, type Transition } from 'framer-motion'
+import { Command } from 'agentk'
 import {
   LEARN_TOOLS,
   TOOL_ACCENTS,
@@ -26,21 +25,23 @@ import {
  *
  * The scroll position picks stage 0-6 (app/learn/page.tsx).
  * The TOOL RAIL — the three tool rows — renders ONCE and
- * morphs its skin per stage. It never unmounts between
- * stages 1-5; only stages 0 (pixels) and 6 (ship) are
- * crossfade zones.
+ * morphs its skin across stages 1, 3, 4, 5. It never unmounts
+ * between those stages; stage 0 (pixels), stage 2 (the REAL
+ * palette) and stage 6 (ship) are crossfade zones stacked in
+ * the same grid cell.
  *
  * stage 0  rail rests hidden (fade + 0.98 scale). DOM-soup
  *          card shows what an agent sees today.
  * stage 1  rows land as schema cards — accent edge, mono
  *          name, description, param chips. 60ms stagger.
- * stage 2  palette chrome fades in AROUND the same rows:
- *          search input + group label above, live note
- *          below. Rows tighten into palette skin (hover,
- *          chevron); clicking one expands a schema-generated
- *          form inline (enum → select, bounded number →
- *          slider) with a Run button wired to the real
- *          executor — the devices above respond.
+ * stage 2  the rail crossfades OUT and the REAL shipped
+ *          <Command> palette (components/cmdk) crossfades IN,
+ *          fed the SAME LEARN_TOOLS and wired to the SAME
+ *          executeTool. Command.ToolForm generates the
+ *          parameter form straight from each tool's schema
+ *          (enum → dropdown, bounded number → slider); running
+ *          a tool drives the devices above. This is the actual
+ *          npm component, not a lookalike skin.
  * stage 3  agent chrome replaces palette chrome: surface
  *          header + live/simulated badge above, honesty
  *          footnote below. Each mono name gains an animated
@@ -156,7 +157,9 @@ export function LearnStage(props: LearnStageProps) {
   const { stage, reducedMotion } = props
   const tune = TUNE
   const T = useMemo(() => makeMotion(tune, reducedMotion), [tune, reducedMotion])
-  const railActive = stage >= S.TOOLS && stage <= S.APPROVAL
+  // The morphing rail owns stages 1, 3, 4, 5. Stage 2 is the real <Command>
+  // palette (its own zone member), so the rail sits OUT for it.
+  const railActive = stage === S.TOOLS || (stage >= S.AGENT && stage <= S.APPROVAL)
 
   // Plan beat sub-phase (stage 4): 0 prompt only · 1 "matching keywords…" ·
   // 2 call params land in the rows. Replays each time stage 4 is entered.
@@ -178,6 +181,15 @@ export function LearnStage(props: LearnStageProps) {
     return () => timers.forEach(clearTimeout)
   }, [stage, reducedMotion, tune.planThinkingMs, tune.planCallsMs])
 
+  // Remount the real <Command> each time stage 2 is (re)entered so the palette
+  // always crossfades in on its browse list — the same three tools — rather
+  // than a leftover form/result from a previous visit. The Command stays
+  // mounted (and inert) while inactive; only a fresh ENTRY bumps the epoch.
+  const [paletteEpoch, setPaletteEpoch] = useState(0)
+  useEffect(() => {
+    if (stage === S.PALETTE) setPaletteEpoch((e) => e + 1)
+  }, [stage])
+
   const zones: [string, boolean, ReactNode][] = [
     ['pixels', stage === S.PIXELS, <PixelsZone key="z-pixels" />],
     [
@@ -192,7 +204,6 @@ export function LearnStage(props: LearnStageProps) {
         webmcp={props.webmcp}
         approval={props.approval}
         planPhase={planPhase}
-        executeTool={props.executeTool}
         onApprove={props.onApprove}
         onReject={props.onReject}
         onResetApproval={props.onResetApproval}
@@ -200,6 +211,9 @@ export function LearnStage(props: LearnStageProps) {
         tune={tune}
       />,
     ],
+    // The REAL shipped palette — fed the SAME catalog + executor as everything
+    // else on this stage, so a run here drives the device cards above.
+    ['palette', stage === S.PALETTE, <PaletteZone key={`z-palette-${paletteEpoch}`} executeTool={props.executeTool} />],
     ['ship', stage === S.SHIP, <ShipZone key="z-ship" />],
   ]
 
@@ -308,7 +322,6 @@ function ToolRail({
   webmcp,
   approval,
   planPhase,
-  executeTool,
   onApprove,
   onReject,
   onResetApproval,
@@ -322,26 +335,12 @@ function ToolRail({
   webmcp: WebMCPPanel
   approval: ApprovalState
   planPhase: number
-  executeTool: ExecuteTool
   onApprove: () => void
   onReject: () => void
   onResetApproval: () => void
   T: MotionSet
   tune: Tune
 }) {
-  const isPalette = stage === S.PALETTE
-  const [query, setQuery] = useState('')
-  const [expanded, setExpanded] = useState<string | null>(null)
-
-  // Leaving the palette stage resets its local chrome state so the rows
-  // are all present (and closed) whenever the palette skin returns.
-  useEffect(() => {
-    if (stage !== S.PALETTE) {
-      setQuery('')
-      setExpanded(null)
-    }
-  }, [stage])
-
   const copy = agentModeCopy(webmcp.mode, webmcp.surface)
   const { status, doneCount } = approval
 
@@ -356,22 +355,13 @@ function ToolRail({
     )
   }, [stage, planRank])
 
-  const q = query.trim().toLowerCase()
-  const matches = (tool: ToolDef) =>
-    !q ||
-    tool.name.toLowerCase().includes(q) ||
-    (tool.label ?? '').toLowerCase().includes(q) ||
-    (tool.description ?? '').toLowerCase().includes(q) ||
-    (tool.keywords ?? []).some((k) => k.toLowerCase().includes(q))
-  const anyMatch = LEARN_TOOLS.some(matches)
-
   const showCallParams = (stage === S.PLAN && planPhase >= 2) || stage === S.APPROVAL
 
   return (
     <div
       className="ls-rail"
       data-stage={stage}
-      data-hoverable={(stage >= S.PALETTE && stage <= S.APPROVAL) || undefined}
+      data-hoverable={(stage >= S.AGENT && stage <= S.APPROVAL) || undefined}
     >
       {/* ── chrome above the rows ── */}
 
@@ -388,21 +378,6 @@ function ToolRail({
           <p className="ls-agent-note">
             This page registers its tools under a <code>{WEBMCP_PREFIX}</code> namespace.
           </p>
-        </div>
-      </Collapse>
-
-      {/* stage 2: palette chrome */}
-      <Collapse show={isPalette}>
-        <div className="ls-chrome-block">
-          <input
-            className="ls-palette-input"
-            type="text"
-            placeholder="Search tools…"
-            aria-label="Search tools"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-          />
-          <div className="ls-palette-group">Tools</div>
         </div>
       </Collapse>
 
@@ -463,14 +438,10 @@ function ToolRail({
               order={i}
               stage={stage}
               railActive={railActive}
-              filtered={isPalette && !matches(tool)}
-              expanded={isPalette && expanded === tool.name}
-              onToggle={() => setExpanded((cur) => (cur === tool.name ? null : tool.name))}
               planCall={planByName.get(tool.name)}
               planIdx={planIdx}
               rowStatus={rowStatus}
               showCallParams={showCallParams}
-              executeTool={executeTool}
               T={T}
               tune={tune}
             />
@@ -478,20 +449,7 @@ function ToolRail({
         })}
       </div>
 
-      <Collapse show={isPalette && !anyMatch}>
-        <p className="ls-rail-empty">No matching tools.</p>
-      </Collapse>
-
       {/* ── chrome below the rows ── */}
-
-      <Collapse show={isPalette}>
-        <div className="ls-chrome-block ls-chrome-block--below">
-          <p className="ls-card-note">
-            This palette is live — run a tool and the devices above change.
-            The form is generated from the schema: enum → dropdown, bounded number → slider.
-          </p>
-        </div>
-      </Collapse>
 
       <Collapse show={stage === S.AGENT}>
         <div className="ls-chrome-block ls-chrome-block--below">
@@ -565,14 +523,10 @@ function RailRow({
   order,
   stage,
   railActive,
-  filtered,
-  expanded,
-  onToggle,
   planCall,
   planIdx,
   rowStatus,
   showCallParams,
-  executeTool,
   T,
   tune,
 }: {
@@ -580,20 +534,15 @@ function RailRow({
   order: number
   stage: number
   railActive: boolean
-  filtered: boolean
-  expanded: boolean
-  onToggle: () => void
   planCall: PlanCall | undefined
   planIdx: number
   rowStatus: 'none' | 'idx' | 'queued' | 'running' | 'done'
   showCallParams: boolean
-  executeTool: ExecuteTool
   T: MotionSet
   tune: Tune
 }) {
   const accent = TOOL_ACCENTS[tool.name]
   const params = summarizeSchema(tool.inputSchema)
-  const isPalette = stage === S.PALETTE
   const showPrefix = stage === S.AGENT
   const showStatus = rowStatus !== 'none'
   // The ONLY dimmed row state: queued behind the approval run. Plan-call
@@ -606,13 +555,12 @@ function RailRow({
   const stagger = railActive && stage === S.TOOLS ? order * tune.rowStaggerS : 0
 
   return (
-    <div className="ls-row-clip" data-hide={filtered || undefined} inert={filtered ? true : undefined}>
+    <div className="ls-row-clip">
       <div className="ls-row-clip-inner">
         <motion.div
           layout={railActive}
           className="ls-row"
           style={{ '--tool-accent': accent } as CSSProperties}
-          data-expanded={expanded || undefined}
           initial={false}
           animate={{ opacity: !railActive ? 0 : queued ? 0.55 : 1, y: railActive ? 0 : -6 }}
           transition={
@@ -623,25 +571,10 @@ function RailRow({
             } as Transition
           }
         >
-          {/* A div that becomes a button only at the palette stage: outside
-              it, screen readers see plain text — no no-op buttons in the
-              tree. Deliberately not a <button>: swapping the element type
-              per stage would remount the name (and its animated prefix). */}
-          <div
-            className="ls-row-head"
-            role={isPalette ? 'button' : undefined}
-            tabIndex={isPalette ? 0 : undefined}
-            aria-expanded={isPalette ? expanded : undefined}
-            onClick={() => {
-              if (isPalette) onToggle()
-            }}
-            onKeyDown={(e) => {
-              if (isPalette && (e.key === 'Enter' || e.key === ' ')) {
-                e.preventDefault()
-                onToggle()
-              }
-            }}
-          >
+          {/* Plain, non-interactive row head across every rail stage (1/3/4/5).
+              The interactive palette now lives in its own zone (the real
+              <Command>), so these rows never need button semantics. */}
+          <div className="ls-row-head">
             {/* plan/approval status slot (index → spinner → ✓). The spinner
                 is decorative — the adjacent aria-live status line ("Running
                 the plan…") announces the running state. */}
@@ -670,19 +603,9 @@ function RailRow({
               </motion.span>
               {tool.name}
             </code>
-            <span
-              className="ls-row-chevron"
-              data-show={isPalette || undefined}
-              data-open={expanded || undefined}
-              aria-hidden="true"
-            >
-              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M6 3l5 5-5 5" />
-              </svg>
-            </span>
           </div>
 
-          {/* description — schema-card + palette + agent skins */}
+          {/* description — schema-card + agent skins */}
           <Collapse show={stage <= S.AGENT}>
             <p className="ls-row-desc">{tool.description}</p>
           </Collapse>
@@ -728,109 +651,50 @@ function RailRow({
               </div>
             </Collapse>
           )}
-
-          {/* inline schema-generated form — palette skin only */}
-          <Collapse show={isPalette && expanded}>
-            <RailForm tool={tool} executeTool={executeTool} />
-          </Collapse>
         </motion.div>
       </div>
     </div>
   )
 }
 
-// ─── Inline schema-generated form (stage 2) ───
-// enum → styled select, bounded number → range slider — the
-// same mapping the palette's ToolForm documents, generated
-// here from the tool's inputSchema. Run calls the real
-// executor, so the devices above respond.
+// ─────────────────────────────────────────────────────────
+// Stage 2 — the REAL shipped palette
+//
+// This is the actual npm <Command> (mirrors
+// components/cmdk/smarthome.tsx), NOT a lookalike skin:
+//   Command.Input + Command.List + Command.Tool render the
+//   browse list; Command.ToolForm generates the parameter
+//   form straight from each tool's inputSchema (enum →
+//   dropdown, bounded number → slider); Command.ToolResult
+//   renders the executor's return value.
+//
+// It is fed the SAME LEARN_TOOLS and the SAME executeTool as
+// the rest of the stage, so running a tool here drives the
+// device cards above (state continuity).
+//
+// Focus: Command.Input has NO autoFocus (the landing page uses
+// it; here it must be off) so scrolling into stage 2 never
+// yanks the caret. While inactive the whole zone is inert (set
+// by the zone wrapper), keeping this out of the tab order and
+// the a11y tree exactly like every other bounded zone member.
+// ─────────────────────────────────────────────────────────
 
-const RUN_FLASH_MS = 1600 // "✓ Ran" confirmation on the Run button
-
-function RailForm({ tool, executeTool }: { tool: ToolDef; executeTool: ExecuteTool }) {
-  const schemaProps: Record<string, any> = (tool.inputSchema as any)?.properties ?? {}
-  const [values, setValues] = useState<Record<string, any>>(() => {
-    const v: Record<string, any> = {}
-    for (const [key, def] of Object.entries<any>(schemaProps)) {
-      if (def.enum) v[key] = def.default ?? def.enum[0]
-      else if (def.type === 'number') v[key] = def.default ?? def.minimum ?? 0
-      else v[key] = def.default ?? ''
-    }
-    return v
-  })
-  const [ran, setRan] = useState(false)
-  const ranTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  useEffect(() => () => {
-    if (ranTimer.current) clearTimeout(ranTimer.current)
-  }, [])
-
-  const submit = async (e: FormEvent) => {
-    e.preventDefault()
-    await executeTool(tool.name, values)
-    setRan(true)
-    if (ranTimer.current) clearTimeout(ranTimer.current)
-    ranTimer.current = setTimeout(() => setRan(false), RUN_FLASH_MS)
-  }
-
+function PaletteZone({ executeTool }: { executeTool: ExecuteTool }) {
   return (
-    <form className="ls-row-form" onSubmit={submit}>
-      {Object.entries<any>(schemaProps).map(([key, def]) =>
-        def.enum ? (
-          <label className="ls-form-field" key={key}>
-            <span className="ls-form-label">{key}</span>
-            <select
-              className="ls-form-select"
-              value={values[key]}
-              onChange={(e) => setValues((v) => ({ ...v, [key]: e.target.value }))}
-            >
-              {def.enum.map((opt: string) => (
-                <option key={opt} value={opt}>
-                  {opt}
-                </option>
-              ))}
-            </select>
-          </label>
-        ) : def.type === 'number' && def.minimum !== undefined && def.maximum !== undefined ? (
-          <label className="ls-form-field" key={key}>
-            <span className="ls-form-label">
-              {key}
-              <code className="ls-form-value">{values[key]}</code>
-            </span>
-            <input
-              className="ls-form-range"
-              type="range"
-              min={def.minimum}
-              max={def.maximum}
-              step={1}
-              value={values[key]}
-              onChange={(e) => setValues((v) => ({ ...v, [key]: Number(e.target.value) }))}
-            />
-          </label>
-        ) : (
-          <label className="ls-form-field" key={key}>
-            <span className="ls-form-label">{key}</span>
-            <input
-              className="ls-form-text"
-              type="text"
-              value={values[key]}
-              onChange={(e) => setValues((v) => ({ ...v, [key]: e.target.value }))}
-            />
-          </label>
-        ),
-      )}
-      {/* Neutral high-contrast Run (no tool-identity blue); the confirmation
-          is a green check in a neutral pill — the same success grammar as
-          the approval flow's executed checks. */}
-      <button type="submit" className="ls-run-btn" data-ran={ran || undefined}>
-        {ran ? (
-          <>
-            <span className="ls-run-check">✓</span> Ran — check the devices
-          </>
-        ) : (
-          'Run'
-        )}
-      </button>
-    </form>
+    <div className="palette-container ls-palette-embed">
+      <Command label="Smart Home" tools={LEARN_TOOLS} onToolExecute={executeTool}>
+        {/* No autoFocus: a scroll-driven stage must never steal focus. */}
+        <Command.Input placeholder="Search tools…" />
+        <Command.List>
+          <Command.Empty>No matching tools.</Command.Empty>
+          {LEARN_TOOLS.map((t) => (
+            <Command.Tool key={t.name} tool={t} />
+          ))}
+        </Command.List>
+        <Command.ToolForm />
+        <Command.ToolResult />
+      </Command>
+    </div>
   )
 }
 
