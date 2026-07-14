@@ -66,7 +66,7 @@ const STAGE = {
 } as const
 
 // All stage timings/springs live in the TUNE block at the top of
-// components/learn/stage.tsx (append ?tune=1 for a live panel). The two
+// components/learn/stage.tsx. The two
 // values used here are read once at module load.
 const TIMING = {
   approvalStepMs: TUNE.approvalStepMs, // gap between executed plan steps after Approve
@@ -438,7 +438,7 @@ const learnStyles = `
     --serif: 'Newsreader', 'Newsreader Fallback', Georgia, 'Times New Roman', serif;
     /* Shared easing for the rail's CSS-driven chrome collapses. --chrome-ms
        is set inline on .ls-panel from the TUNE block (0ms under reduced
-       motion), so the ?tune=1 panel drives these live too. */
+       motion). */
     --ease-soft: cubic-bezier(0.32, 0, 0.24, 1);
   }
 
@@ -1152,156 +1152,6 @@ const learnStyles = `
   }
   .ls-ghost-btn:hover { background: rgba(255,255,255,0.05); }
 
-  /* ── ?tune=1 dev panel — deliberately NOT part of the walkthrough ── */
-
-  /* Anchored bottom-RIGHT (the prose column lives on the left; the stage is
-     top-anchored, so bottom-right is dead space) with its own scroll. */
-  .ls-tune-section {
-    font-size: 10px;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: #8f8f8f;
-    margin: 10px 0 6px;
-  }
-  .ls-tune-presets { display: flex; gap: 6px; }
-  .ls-tune-preset {
-    flex: 1;
-    padding: 5px 0;
-    border-radius: 6px;
-    border: 1px solid #3a3a3a;
-    background: transparent;
-    color: #c9c9c9;
-    font-family: var(--mono, monospace);
-    font-size: 11px;
-    cursor: pointer;
-  }
-  .ls-tune-preset:hover { border-color: #8f8f8f; }
-  .ls-tune-preset[data-active] { background: #ececec; color: #141414; border-color: #ececec; }
-  .ls-tune-replay {
-    width: 100%;
-    padding: 6px 0;
-    border-radius: 6px;
-    border: 1px solid #3a3a3a;
-    background: transparent;
-    color: #c9c9c9;
-    font-family: var(--mono, monospace);
-    font-size: 11px;
-    cursor: pointer;
-  }
-  .ls-tune-replay:hover { border-color: #8f8f8f; color: #ececec; }
-  .ls-tune-more summary {
-    font-size: 11px;
-    color: #8f8f8f;
-    cursor: pointer;
-    margin: 8px 0 4px;
-  }
-  .ls-tune-more summary:hover { color: #ececec; }
-
-  .ls-tune-pill {
-    position: fixed;
-    right: 12px;
-    bottom: 12px;
-    z-index: 100;
-    padding: 5px 12px;
-    border-radius: 9999px;
-    border: 1px dashed #5a5a5a;
-    background: rgba(8, 8, 8, 0.94);
-    color: #8f8f8f;
-    font-family: var(--mono, monospace);
-    font-size: 11px;
-    letter-spacing: 0.08em;
-    cursor: pointer;
-  }
-  .ls-tune-pill:hover { color: #ececec; border-color: #8f8f8f; }
-
-  .ls-tune {
-    position: fixed;
-    right: 12px;
-    bottom: 12px;
-    z-index: 100;
-    width: 212px;
-    max-height: 42vh;
-    overflow-y: auto;
-    background: rgba(8, 8, 8, 0.94);
-    border: 1px dashed #5a5a5a;
-    border-radius: 8px;
-    padding: 10px 12px;
-    font-family: var(--mono);
-  }
-  .ls-tune-head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-    font-size: 9.5px;
-    font-weight: 600;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: #999;
-    margin-bottom: 8px;
-  }
-  .ls-tune-reset {
-    font: inherit;
-    color: var(--text-2);
-    background: none;
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    padding: 2px 6px;
-    cursor: pointer;
-  }
-  .ls-tune-reset:hover { color: var(--text); }
-  /* Label gets its own full-width line (long names like
-     deviceVisualDuration never truncate); slider + value sit beneath. */
-  .ls-tune-row {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 42px;
-    align-items: center;
-    column-gap: 8px;
-    margin-bottom: 7px;
-  }
-  .ls-tune-label {
-    grid-column: 1 / -1;
-    font-size: 9.5px;
-    color: #9a9a9a;
-    white-space: nowrap;
-    margin-bottom: 2px;
-  }
-  /* dark neutral tracks + neutral thumbs — the panel is furniture, not UI */
-  .ls-tune-row input[type="range"] {
-    -webkit-appearance: none;
-    appearance: none;
-    width: 100%;
-    height: 12px;
-    background: transparent;
-  }
-  .ls-tune-row input[type="range"]::-webkit-slider-runnable-track {
-    height: 4px;
-    border-radius: 2px;
-    background: #2a2a2a;
-  }
-  .ls-tune-row input[type="range"]::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    width: 11px;
-    height: 11px;
-    border-radius: 50%;
-    background: #c9c9c9;
-    margin-top: -3.5px;
-  }
-  .ls-tune-row input[type="range"]::-moz-range-track {
-    height: 4px;
-    border-radius: 2px;
-    background: #2a2a2a;
-  }
-  .ls-tune-row input[type="range"]::-moz-range-thumb {
-    width: 11px;
-    height: 11px;
-    border: none;
-    border-radius: 50%;
-    background: #c9c9c9;
-  }
-  .ls-tune-val { font-size: 9.5px; color: var(--text-2); text-align: right; font-variant-numeric: tabular-nums; }
-  .ls-tune-note { font-size: 9px; color: #777; margin-top: 6px; line-height: 1.5; }
-
   /* Stage 6: ship — floating chrome (no outer bordered panel), same as
      every other stage; the condensed devices stay visible above it */
   .ls-ship {
@@ -1422,7 +1272,6 @@ const learnStyles = `
     .ls-device { padding: 10px; }
     .ls-device-reading { font-size: 15px; }
     .ls-row-note { display: none; }
-    .ls-tune { width: 200px; max-height: 36vh; }
   }
 
   /* ≤480px: the schema param chips retire so all three tool rows stay
