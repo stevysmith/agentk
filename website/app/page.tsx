@@ -49,55 +49,6 @@ function highlightCode(code: string): React.ReactNode[] {
 }
 
 // ─────────────────────────────────────────────────────────
-// Demo hint with dynamic arrow positioning
-// ─────────────────────────────────────────────────────────
-
-function DemoHint({ text, onClickHint }: { text: string; onClickHint: () => void }) {
-  const hintRef = useRef<HTMLDivElement>(null)
-  const [offset, setOffset] = useState({ x: 0, y: 0 })
-
-  useEffect(() => {
-    const measure = () => {
-      const palette = document.querySelector('.palette-container')
-      const input = palette?.querySelector('[cmdk-input]')
-      const demoArea = document.querySelector('.demo-area')
-      if (!palette || !input || !demoArea) return
-
-      const paletteRect = palette.getBoundingClientRect()
-      const inputRect = input.getBoundingClientRect()
-      const demoRect = demoArea.getBoundingClientRect()
-
-      setOffset({
-        x: paletteRect.right - demoRect.left + 20,
-        y: inputRect.top - demoRect.top + inputRect.height / 2,
-      })
-    }
-    measure()
-    const t = setTimeout(measure, 200)
-    return () => clearTimeout(t)
-  }, [text])
-
-  return (
-    <motion.div
-      ref={hintRef}
-      className="demo-hint"
-      style={{ left: offset.x, top: offset.y - 25 }}
-      initial={{ opacity: 0, x: 8 }}
-      animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: -8 }}
-      transition={{ duration: 0.25, delay: 0.15 }}
-      onClick={onClickHint}
-    >
-      <svg className="demo-hint-arrow" width="50" height="50" viewBox="0 0 50 50" fill="none">
-        <path d="M46 48 C 38 36, 26 28, 16 22 C 10 18, 6 16, 4 14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" fill="none" strokeDasharray="3 3" />
-        <path d="M4 18 L2 13 L7 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
-      </svg>
-      <span className="demo-hint-text">{text}</span>
-    </motion.div>
-  )
-}
-
-// ─────────────────────────────────────────────────────────
 // Theme configuration
 // ─────────────────────────────────────────────────────────
 
@@ -253,8 +204,6 @@ export default function ShowcasePage() {
   const [activeTheme, setActiveTheme] = useState<ThemeId>('devops')
   const [dark, setDark] = useState(false)
   const [codeCopied, setCodeCopied] = useState(false)
-  const [showArrowHint, setShowArrowHint] = useState(false)
-  const hasClickedTab = useRef(false)
   const themeTabsRef = useRef<HTMLDivElement>(null)
 
   // ─── DevTools easter egg (client-only, once) ───
@@ -402,235 +351,216 @@ export default function ShowcasePage() {
         </button>
 
         <div className="page-content">
-          {/* ─── Header ─── */}
-          <motion.header
-            className="header"
-            initial={reduced ? false : { opacity: 0, y: 16 }}
-            animate={mounted ? { opacity: 1, y: 0 } : {}}
-            transition={rt(0.6, 0.1)}
-          >
-            <div className="header-left">
+          <div className="hero">
+            {/* ─── Hero copy (left) ─── */}
+            <motion.div
+              className="hero-copy"
+              initial={reduced ? false : { opacity: 0, y: 16 }}
+              animate={mounted ? { opacity: 1, y: 0 } : {}}
+              transition={rt(0.6, 0.1)}
+            >
               <div className="title-row">
                 <h1 className="page-title">agentk</h1>
                 <span className="version-badge">v0.4.1</span>
               </div>
-              <p className="tagline">The command palette for the agentic web.</p>
-              <p className="tagline-sub">Define your app&rsquo;s capabilities once as JSON&nbsp;Schema tools. The same catalog gives people a command palette and AI agents a WebMCP surface &mdash; one definition, two consumers.</p>
-              <p className="hero-honesty">
-                WebMCP is a Chrome origin trial, not a shipped standard &mdash; so I built agentk to feature-detect and fall back to a plain palette wherever it&rsquo;s missing. Nothing breaks.
-              </p>
-              <a href="/learn" className="hero-learn-link">
-                Learn WebMCP interactively &mdash; a 2-minute walkthrough
-                <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              <p className="tagline">The command palette<br />for the agentic web.</p>
+              <p className="tagline-sub"><strong>agentk is a React command palette.</strong> Define your capabilities once as JSON&nbsp;Schema tools. People get the palette; AI agents get a WebMCP endpoint &mdash; one definition, two ways in.</p>
+
+              {/* Walkthrough — leads the CTA stack, the interactive proof */}
+              <a href="/learn" className="hero-walkthrough">
+                See WebMCP drive a live UI &mdash; two minutes
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
               </a>
-            </div>
-            <div className="header-right">
-              <button className="install-btn" onClick={handleCopy}>
-                {copied ? (
-                  <span className="copied-state">
-                    <CheckIcon />
-                    <span>Copied!</span>
-                  </span>
-                ) : (
-                  <>
-                    <span className="install-text">npm install @stevysmith/agentk</span>
-                    <span className="copy-icon-wrap">
-                      <CopyIcon />
+
+              <div className="hero-actions">
+                <button className="install-btn" onClick={handleCopy}>
+                  {copied ? (
+                    <span className="copied-state">
+                      <CheckIcon />
+                      <span>Copied!</span>
                     </span>
-                  </>
-                )}
-              </button>
-              <a
-                className="github-link"
-                href="https://github.com/stevysmith/agentk"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <GitHubIcon />
-                <span>GitHub</span>
-              </a>
-            </div>
-          </motion.header>
+                  ) : (
+                    <>
+                      <span className="install-text">npm install @stevysmith/agentk</span>
+                      <span className="copy-icon-wrap">
+                        <CopyIcon />
+                      </span>
+                    </>
+                  )}
+                </button>
+                <a
+                  className="github-link"
+                  href="https://github.com/stevysmith/agentk"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <GitHubIcon />
+                  <span>GitHub</span>
+                </a>
+              </div>
 
-          {/* ─── Inline Demo ─── */}
-          <motion.div
-            className="demo-area"
-            layout
-            initial={reduced ? false : { opacity: 0, y: 24, scale: 0.98 }}
-            animate={mounted ? { opacity: 1, y: 0, scale: 1 } : {}}
-            transition={{ ...rt(0.7, 0.25), layout: { duration: reduced ? 0 : 0.3, ease } }}
-          >
-            <AnimatePresence mode="wait">
+              {/* Honesty — last in the stack, as designed fine print */}
+              <div className="hero-honesty">
+                <span className="hero-honesty-eyebrow">Origin trial</span>
+                <p>WebMCP is a Chrome origin trial, not a shipped standard. agentk feature-detects it and falls back to a plain command palette wherever it&rsquo;s missing &mdash; nothing breaks.</p>
+              </div>
+            </motion.div>
+
+            {/* ─── Live showcase (right): tabs → palette → source → CTA ─── */}
+            <div className="hero-showcase">
+              {/* Theme Switcher */}
               <motion.div
-                key={activeTheme}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.12 }}
-              >
-                <ActiveThemeComponent />
-              </motion.div>
-            </AnimatePresence>
-            {THEMES.find(t => t.id === activeTheme)!.hint && <DemoHint
-              key={`hint-${activeTheme}`}
-              text={THEMES.find(t => t.id === activeTheme)!.hint}
-              onClickHint={() => {
-                const input = document.querySelector('.palette-container [cmdk-input]') as HTMLInputElement
-                if (input) {
-                  const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set
-                  nativeInputValueSetter?.call(input, THEMES.find(t => t.id === activeTheme)!.hint)
-                  input.dispatchEvent(new Event('input', { bubbles: true }))
-                  input.focus()
-                }
-              }}
-            />}
-          </motion.div>
-
-          {/* ─── Theme Switcher ─── */}
-          <motion.div
-            className="theme-switcher"
-            ref={themeTabsRef}
-            initial={reduced ? false : { opacity: 0, y: 12 }}
-            animate={mounted ? { opacity: 1, y: 0 } : {}}
-            transition={rt(0.5, 0.4)}
-            role="tablist"
-          >
-            <button
-              className="theme-arrow"
-              onClick={() => {
-                const idx = THEMES.findIndex((t) => t.id === activeTheme)
-                if (idx > 0) setActiveTheme(THEMES[idx - 1].id)
-              }}
-              aria-label="Previous theme"
-              data-disabled={activeTheme === THEMES[0].id ? '' : undefined}
-            >
-              ←
-            </button>
-            {THEMES.map((theme) => (
-              <button
-                key={theme.id}
-                className="theme-tab"
-                data-active={activeTheme === theme.id ? '' : undefined}
-                onClick={() => {
-                  setActiveTheme(theme.id)
-                }}
-                role="tab"
-                aria-selected={activeTheme === theme.id}
-              >
-                {activeTheme === theme.id && (
-                  <motion.div
-                    className="theme-tab-bg"
-                    layoutId="activeThemeTab"
-                    transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-                  />
-                )}
-                <span className="theme-tab-icon">{theme.icon}</span>
-                <span className="theme-tab-label">{theme.label}</span>
-              </button>
-            ))}
-            <button
-              className="theme-arrow"
-              onClick={() => {
-                const idx = THEMES.findIndex((t) => t.id === activeTheme)
-                if (idx < THEMES.length - 1) setActiveTheme(THEMES[idx + 1].id)
-              }}
-              aria-label="Next theme"
-              data-disabled={activeTheme === THEMES[THEMES.length - 1].id ? '' : undefined}
-            >
-              →
-            </button>
-          </motion.div>
-
-          {/* ─── Full-demo CTA ─── */}
-          <motion.div
-            className="demo-cta-row"
-            initial={reduced ? false : { opacity: 0, y: 8 }}
-            animate={mounted ? { opacity: 1, y: 0 } : {}}
-            transition={rt(0.5, 0.45)}
-          >
-            <AnimatePresence mode="wait">
-              {(() => {
-                const theme = THEMES.find(t => t.id === activeTheme)!
-                return (
-                  <motion.a
-                    key={`cta-${activeTheme}`}
-                    href={theme.demoUrl}
-                    className="demo-cta"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.15 }}
-                  >
-                    {theme.demoLabel.replace('Try the', 'Try the full')}
-                    <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                  </motion.a>
-                )
-              })()}
-            </AnimatePresence>
-          </motion.div>
-
-          {/* ─── Code snippet ─── */}
-          <motion.div
-            className="code-area"
-            initial={reduced ? false : { opacity: 0, y: 12 }}
-            animate={mounted ? { opacity: 1, y: 0 } : {}}
-            transition={rt(0.5, 0.5)}
-          >
-            <AnimatePresence mode="wait">
-              <motion.pre
-                key={activeTheme}
-                className="code-block"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.15 }}
+                className="theme-switcher"
+                ref={themeTabsRef}
+                initial={reduced ? false : { opacity: 0, y: 12 }}
+                animate={mounted ? { opacity: 1, y: 0 } : {}}
+                transition={rt(0.5, 0.4)}
+                role="tablist"
               >
                 <button
-                  className="code-copy-btn"
-                  data-copied={codeCopied ? '' : undefined}
+                  className="theme-arrow"
                   onClick={() => {
-                    navigator.clipboard.writeText(THEME_CODE[activeTheme].code)
-                    setCodeCopied(true)
-                    setTimeout(() => setCodeCopied(false), 2000)
+                    const idx = THEMES.findIndex((t) => t.id === activeTheme)
+                    if (idx > 0) setActiveTheme(THEMES[idx - 1].id)
                   }}
-                  aria-label="Copy code"
+                  aria-label="Previous theme"
+                  data-disabled={activeTheme === THEMES[0].id ? '' : undefined}
                 >
-                  <AnimatePresence mode="wait" initial={false}>
-                    <motion.span
-                      key={codeCopied ? 'check' : 'copy'}
-                      initial={{ opacity: 0, scale: 0.8 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.8 }}
-                      transition={{ duration: 0.15 }}
-                      style={{ display: 'flex' }}
-                    >
-                      {codeCopied ? <CheckIcon /> : <CopyIcon />}
-                    </motion.span>
-                  </AnimatePresence>
+                  ←
                 </button>
-                <code>{highlightCode(THEME_CODE[activeTheme].code)}</code>
-              </motion.pre>
-            </AnimatePresence>
-            <AnimatePresence mode="wait">
-              {(() => {
-                const theme = THEMES.find(t => t.id === activeTheme)!
-                return (
-                  <motion.a
-                    key={`demo-${activeTheme}`}
-                    href={theme.demoUrl}
-                    className="tab-demo-link"
+                {THEMES.map((theme) => (
+                  <button
+                    key={theme.id}
+                    className="theme-tab"
+                    data-active={activeTheme === theme.id ? '' : undefined}
+                    onClick={() => {
+                      setActiveTheme(theme.id)
+                    }}
+                    role="tab"
+                    aria-selected={activeTheme === theme.id}
+                  >
+                    {activeTheme === theme.id && (
+                      <motion.div
+                        className="theme-tab-bg"
+                        layoutId="activeThemeTab"
+                        transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                      />
+                    )}
+                    <span className="theme-tab-icon">{theme.icon}</span>
+                    <span className="theme-tab-label">{theme.label}</span>
+                  </button>
+                ))}
+                <button
+                  className="theme-arrow"
+                  onClick={() => {
+                    const idx = THEMES.findIndex((t) => t.id === activeTheme)
+                    if (idx < THEMES.length - 1) setActiveTheme(THEMES[idx + 1].id)
+                  }}
+                  aria-label="Next theme"
+                  data-disabled={activeTheme === THEMES[THEMES.length - 1].id ? '' : undefined}
+                >
+                  →
+                </button>
+              </motion.div>
+
+              {/* Palette */}
+              <motion.div
+                className="demo-area"
+                layout
+                initial={reduced ? false : { opacity: 0, y: 24, scale: 0.98 }}
+                animate={mounted ? { opacity: 1, y: 0, scale: 1 } : {}}
+                transition={{ ...rt(0.7, 0.25), layout: { duration: reduced ? 0 : 0.3, ease } }}
+              >
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={activeTheme}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.12 }}
+                  >
+                    <ActiveThemeComponent />
+                  </motion.div>
+                </AnimatePresence>
+              </motion.div>
+
+              {/* Code snippet — identical surface to the palette above */}
+              <motion.div
+                className="code-area"
+                initial={reduced ? false : { opacity: 0, y: 12 }}
+                animate={mounted ? { opacity: 1, y: 0 } : {}}
+                transition={rt(0.5, 0.5)}
+              >
+                <AnimatePresence mode="wait">
+                  <motion.pre
+                    key={activeTheme}
+                    className="code-block"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
                     transition={{ duration: 0.15 }}
                   >
-                    {theme.demoLabel}
-                    <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                  </motion.a>
-                )
-              })()}
-            </AnimatePresence>
-          </motion.div>
+                    <button
+                      className="code-copy-btn"
+                      data-copied={codeCopied ? '' : undefined}
+                      onClick={() => {
+                        navigator.clipboard.writeText(THEME_CODE[activeTheme].code)
+                        setCodeCopied(true)
+                        setTimeout(() => setCodeCopied(false), 2000)
+                      }}
+                      aria-label="Copy code"
+                    >
+                      <AnimatePresence mode="wait" initial={false}>
+                        <motion.span
+                          key={codeCopied ? 'check' : 'copy'}
+                          initial={{ opacity: 0, scale: 0.8 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          exit={{ opacity: 0, scale: 0.8 }}
+                          transition={{ duration: 0.15 }}
+                          style={{ display: 'flex' }}
+                        >
+                          {codeCopied ? <CheckIcon /> : <CopyIcon />}
+                        </motion.span>
+                      </AnimatePresence>
+                    </button>
+                    <code>{highlightCode(THEME_CODE[activeTheme].code)}</code>
+                  </motion.pre>
+                </AnimatePresence>
+              </motion.div>
+
+              {/* Single demo CTA (deduped) + repurposed docs link */}
+              <motion.div
+                className="demo-cta-row"
+                initial={reduced ? false : { opacity: 0, y: 8 }}
+                animate={mounted ? { opacity: 1, y: 0 } : {}}
+                transition={rt(0.5, 0.55)}
+              >
+                <AnimatePresence mode="wait">
+                  {(() => {
+                    const theme = THEMES.find(t => t.id === activeTheme)!
+                    return (
+                      <motion.a
+                        key={`cta-${activeTheme}`}
+                        href={theme.demoUrl}
+                        className="demo-cta"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.15 }}
+                      >
+                        {theme.demoLabel}
+                        <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                      </motion.a>
+                    )
+                  })()}
+                </AnimatePresence>
+                <a href="/docs" className="docs-link">
+                  Read the docs
+                  <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                </a>
+              </motion.div>
+            </div>
+          </div>
 
           {/* ─── Footer ─── */}
           <motion.footer

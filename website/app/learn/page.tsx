@@ -461,6 +461,13 @@ const learnStyles = `
   .learn-page {
     min-height: 100dvh;
     background: var(--bg);
+    /* Amber is the shared brand accent (matches the landing). Scoped here so
+       /learn's chrome — focus rings, logo hover, param-type chips, the prompt
+       quote, the spinner — reads amber like the landing, without touching
+       /docs or the cmdk component defaults. Blue stays ONLY as the
+       set_thermostat tool identity (hardcoded), per "blue = one identity". */
+    --accent: #f59e0b;
+    --accent-2: #d97706;
     /* clip, not hidden: hidden would make this the scroll container
        and break the sticky stage */
     overflow-x: clip;

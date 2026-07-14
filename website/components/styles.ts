@@ -52,32 +52,34 @@ export const showcaseStyles = `
     --grayA5: hsla(0, 0%, 0%, 0.09);
     --grayA6: hsla(0, 0%, 0%, 0.114);
 
-    --bg: var(--gray1);
+    /* Warm paper ground (was gray1 near-white). Pairs with the amber accent
+       and re-temperatures the LIGHT shell toward /learn's flat, un-SaaS
+       surface — no blue-lavender gradient. */
+    --bg: #faf7f2;
     --card-bg: #ffffff;
     --card-border: var(--gray6);
-    --card-shadow: 0 16px 70px rgb(0 0 0 / 20%);
+    /* Flat hairline surface, not a floating modal. /learn's cards carry no
+       drop-shadow; the palette keeps only a whisper so it still reads as a
+       real surface. The code block below inherits the IDENTICAL shadow so
+       palette → source reads as one continuous unit. */
+    --card-shadow: 0 2px 10px rgb(0 0 0 / 5%);
     --text: var(--gray12);
     --text-2: var(--gray11);
     --text-3: var(--gray9);
     --border: var(--gray6);
-    /* One blue identity, shared with /learn (--accent #3b82f6 / --accent-2
-       #2563eb in app/globals.css). Was cmdk's azure hsl(206,100%,50%);
-       unified so the interactive accent (selected-item icon, form submit,
-       input caret, select:focus, hero-learn-link hover) doesn't shift hue
-       when you click through to /learn. */
-    --accent: #3b82f6;
-    --accent-2: #2563eb;
+    /* ONE accent — /learn's amber (#f59e0b). Routes the LANDING chrome:
+       honesty marker, walkthrough + hero links, the active-tab indicator,
+       focus rings, form submit, input caret, select:focus, the demo CTA.
+       The multicolor app-logo tabs stay the only saturated color in the
+       chrome. (Each showcase demo keeps its OWN internal accent.) */
+    --accent: #f59e0b;
+    --accent-2: #d97706;
     --font: 'Inter', system-ui, -apple-system, sans-serif;
     --mono: 'SF Mono', ui-monospace, 'Fira Code', monospace;
     /* Editorial serif for display type only (the hero headline). Loaded
        page-scoped exactly like /learn; 'Newsreader Fallback' is the metric
        -tuned Georgia face declared above. */
     --serif: 'Newsreader', 'Newsreader Fallback', Georgia, 'Times New Roman', serif;
-    /* /learn's per-tool identity hues — reused for tool/identifier accents so
-       the two pages share one color language. */
-    --tool-orange: #f59e0b;
-    --tool-blue: #3b82f6;
-    --tool-purple: #a78bfa;
     /* /learn's motion character: one calm ease for entrances + hovers. */
     --ease-soft: cubic-bezier(0.32, 0, 0.24, 1);
   }
@@ -99,10 +101,12 @@ export const showcaseStyles = `
     --grayA4: hsla(0, 0%, 100%, 0.086);
     --grayA5: hsla(0, 0%, 100%, 0.11);
     --grayA6: hsla(0, 0%, 100%, 0.138);
-    --bg: var(--gray1);
+    /* Flat near-black ground, matching /learn's --bg (#0a0a0a): a single
+       flat surface, no multi-hue mesh. */
+    --bg: #0a0a0a;
     --card-bg: var(--gray2);
     --card-border: var(--gray6);
-    --card-shadow: 0 16px 70px rgb(0 0 0 / 50%);
+    --card-shadow: 0 2px 10px rgb(0 0 0 / 35%);
     --text: var(--gray12);
     --text-2: var(--gray11);
     --text-3: var(--gray9);
@@ -126,7 +130,7 @@ export const showcaseStyles = `
   }
 
   .page-content {
-    max-width: 800px;
+    max-width: 1080px;
     margin: 0 auto;
     padding: 0 24px;
     position: relative;
@@ -134,6 +138,31 @@ export const showcaseStyles = `
     display: flex;
     flex-direction: column;
     min-height: 100vh;
+  }
+
+  /* ─── Two-column hero: copy left, live showcase right ───
+     Mirrors /learn's minmax(0,5fr) minmax(0,6fr) spine so control (tabs),
+     result (palette) and source (code) all share the right column while the
+     copy anchors the left. */
+  .hero {
+    display: grid;
+    grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+    gap: 56px;
+    align-items: start;
+    padding: 80px 0 40px;
+  }
+
+  .hero-copy {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    max-width: 30rem;
+  }
+
+  .hero-showcase {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
   }
 
   /* ─── Background gradient mesh ─── */
@@ -149,25 +178,20 @@ export const showcaseStyles = `
 
   .bg-mesh::after {
     content: '';
-    /* Ambient mesh kept within the brand hue system (blue / purple / amber —
-       the same tool-hue family as the accents). The old cmdk rainbow's loud
-       red/hotpink radials were re-hued into blue/purple so the ambiance no
-       longer sits outside the palette. */
+    /* Single-hue amber warmth — no multi-hue mesh. The old cmdk rainbow
+       (blue/violet/green radials) is gone; what remains is one warm wash
+       that pairs with the amber accent and gives the LIGHT paper ground a
+       faint glow. DARK stays essentially flat (opacity ~0.03 below). */
     background-image:
-      radial-gradient(at 27% 37%, hsla(215, 98%, 61%, 1) 0px, transparent 50%),
-      radial-gradient(at 97% 21%, hsla(256, 98%, 72%, 1) 0px, transparent 50%),
-      radial-gradient(at 52% 99%, hsla(256, 78%, 68%, 1) 0px, transparent 50%),
-      radial-gradient(at 10% 29%, hsla(133, 96%, 67%, 1) 0px, transparent 50%),
-      radial-gradient(at 97% 96%, hsla(38, 60%, 74%, 1) 0px, transparent 50%),
-      radial-gradient(at 33% 50%, hsla(222, 67%, 73%, 1) 0px, transparent 50%),
-      radial-gradient(at 79% 53%, hsla(212, 70%, 74%, 1) 0px, transparent 50%);
+      radial-gradient(at 72% 18%, hsla(38, 92%, 58%, 1) 0px, transparent 55%),
+      radial-gradient(at 22% 82%, hsla(34, 88%, 55%, 1) 0px, transparent 55%);
     position: fixed;
     width: 120%;
     height: 120%;
     top: -10%;
     left: -10%;
-    filter: blur(100px) saturate(150%);
-    opacity: 0.15;
+    filter: blur(100px) saturate(120%);
+    opacity: 0.09;
     pointer-events: none;
     z-index: 0;
     transform: translateZ(0);
@@ -181,16 +205,23 @@ export const showcaseStyles = `
     100% { transform: translateZ(0) translate(1%, -1%) scale(1.01); }
   }
 
-  .dark .bg-mesh::after { opacity: 0.08; }
+  .dark .bg-mesh::after { opacity: 0.03; }
 
   /* Respect reduced motion: still the ambient mesh drift and any hover/link
      easing. Framer entrance transitions are collapsed to 0 in app/page.tsx. */
   @media (prefers-reduced-motion: reduce) {
     .bg-mesh::after { animation: none; }
-    .hero-learn-link,
-    .hero-learn-link svg,
+    .hero-walkthrough,
+    .hero-walkthrough svg,
     .demo-cta svg,
-    .tab-demo-link svg { transition: none; }
+    .docs-link svg { transition: none; }
+  }
+
+  /* Amber focus ring across the LANDING chrome, matching /learn. */
+  .showcase-page :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: 4px;
   }
 
   /* ─── Dark mode toggle ─── */
@@ -217,22 +248,7 @@ export const showcaseStyles = `
     border-color: var(--text-3);
   }
 
-  /* ─── Header ─── */
-  .header {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    padding: 80px 0 48px;
-    gap: 24px;
-    flex-wrap: wrap;
-  }
-
-  .header-left {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-
+  /* ─── Hero copy ─── */
   .title-row {
     display: flex;
     align-items: baseline;
@@ -272,76 +288,109 @@ export const showcaseStyles = `
     text-wrap: balance;
     color: var(--text);
     margin-top: 14px;
-    max-width: 15ch;
   }
 
   .tagline-sub {
     font-size: 15.5px;
     color: var(--text-2);
     font-weight: 400;
-    margin-top: 12px;
+    margin-top: 14px;
     line-height: 1.55;
-    max-width: 46ch;
+    max-width: 42ch;
   }
+  /* Name the artifact first: the lead clause is the one bit of the sub set in
+     full text color so a skeptical React dev reads the form factor before the
+     philosophy. */
+  .tagline-sub strong { color: var(--text); font-weight: 600; }
 
-  /* Honesty acknowledgment — hairline pill + leading marker dot, the same
-     "honesty reads as designed" treatment as /learn's .ls-honesty. */
-  .hero-honesty {
-    display: flex;
-    gap: 9px;
-    align-items: flex-start;
-    margin-top: 16px;
-    max-width: 48ch;
-    padding: 9px 12px;
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    background: var(--grayA3);
-    font-size: 13px;
-    line-height: 1.5;
-    color: var(--text-2);
-  }
-
-  .hero-honesty::before {
-    content: '';
-    flex-shrink: 0;
-    width: 6px;
-    height: 6px;
-    margin-top: 6px;
-    border-radius: 50%;
-    background: var(--tool-blue);
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--tool-blue) 14%, transparent);
-  }
-
-  .hero-honesty code {
-    font-family: var(--mono);
-    font-size: 12px;
-    color: var(--text);
-  }
-
-  /* First-class path to the interactive walkthrough, from the hero. */
-  .hero-learn-link {
+  /* Walkthrough — the interactive proof that converts skeptics. Promoted to a
+     real amber affordance at >= GitHub's weight (bordered, filled marker),
+     and it leads the CTA stack. */
+  .hero-walkthrough {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    margin-top: 18px;
+    gap: 8px;
+    margin-top: 24px;
+    padding: 0 16px;
+    height: 40px;
+    border-radius: 9999px;
     font-size: 14px;
     font-weight: 500;
-    color: var(--text);
+    color: var(--accent-2);
     text-decoration: none;
-    width: fit-content;
-    transition: gap 150ms var(--ease-soft), color 150ms var(--ease-soft);
+    background: color-mix(in srgb, var(--accent) 12%, transparent);
+    border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+    transition: gap 150ms var(--ease-soft), background 150ms var(--ease-soft), border-color 150ms var(--ease-soft);
   }
-  .hero-learn-link:hover { gap: 9px; color: var(--accent); }
-  .hero-learn-link svg { transition: transform 150ms var(--ease-soft); }
-  .hero-learn-link:hover svg { transform: translateX(2px); }
+  .hero-walkthrough:hover {
+    gap: 11px;
+    background: color-mix(in srgb, var(--accent) 18%, transparent);
+    border-color: color-mix(in srgb, var(--accent) 60%, transparent);
+  }
+  .hero-walkthrough svg { transition: transform 150ms var(--ease-soft); }
+  .hero-walkthrough:hover svg { transform: translateX(2px); }
+  .dark .hero-walkthrough { color: #fbbf24; }
 
-  .header-right {
+  /* Install + GitHub: a deliberate pair (matched heights + radii), so GitHub
+     is never an orphaned tag. */
+  .hero-actions {
     display: flex;
     flex-direction: row;
     align-items: center;
     flex-wrap: wrap;
     gap: 10px;
-    padding-top: 4px;
+    margin-top: 12px;
+  }
+
+  /* Honesty acknowledgment — LAST in the stack, as designed fine print.
+     Amber small-caps eyebrow + amber marker, the "honesty reads as designed"
+     treatment from /learn's .ls-honesty. */
+  .hero-honesty {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 22px;
+    max-width: 44ch;
+    padding: 11px 13px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--grayA3);
+  }
+
+  .hero-honesty-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--accent-2);
+  }
+  .dark .hero-honesty-eyebrow { color: #fbbf24; }
+  .hero-honesty-eyebrow::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent);
+  }
+
+  /* Honesty body sits on the grayA3-darkened warm patch: gray11 there is a
+     4.24:1 near-miss of AA at 13px in LIGHT, so the note carries full --text
+     (gray12) for a clean pass. Dark's gray11 is already a healthy 6.82:1 and
+     keeps the intended fine-print tone. */
+  .hero-honesty p {
+    font-size: 13px;
+    line-height: 1.55;
+    color: var(--text);
+  }
+  .dark .hero-honesty p { color: var(--text-2); }
+  .hero-honesty code {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text);
   }
 
   .install-btn {
@@ -383,15 +432,19 @@ export const showcaseStyles = `
 
   .install-text { font-family: var(--mono); font-size: 13px; }
 
+  /* Copy-confirm feedback rides the single amber accent (not a green second
+     accent /learn never uses). Amber-2 clears AA on the light warm shell; dark
+     lifts to the established #fbbf24 amber, same as the honesty eyebrow. */
   .copied-state {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    color: #22c55e;
+    color: var(--accent-2);
     font-family: var(--font);
     font-size: 13px;
     font-weight: 500;
   }
+  .dark .copied-state { color: #fbbf24; }
 
   .github-link {
     display: inline-flex;
@@ -417,7 +470,7 @@ export const showcaseStyles = `
   /* ─── Demo area ─── */
   .demo-area {
     position: relative;
-    margin: 0 auto;
+    margin: 0;
     width: 100%;
     max-width: 640px;
   }
@@ -510,7 +563,7 @@ export const showcaseStyles = `
   }
 
   .dark .palette-container [cmdk-item][aria-selected="true"] [data-agentk-tool-icon] {
-    color: #60a5fa;
+    color: #fbbf24;
   }
 
   .palette-container [cmdk-item] [data-agentk-tool-description] {
@@ -1596,21 +1649,30 @@ export const showcaseStyles = `
   }
 
   /* ─── Theme switcher ─── */
+  /* Left-aligned to the palette's edge so control (tabs) and result (palette)
+     share one spine. */
   .theme-switcher {
     display: flex;
     align-items: center;
-    justify-content: center;
-    gap: 4px;
-    margin-top: 52px;
+    justify-content: flex-start;
+    gap: 2px;
+    margin: 0 0 14px 0;
     position: relative;
+    /* single row in the narrower two-column layout: the arrow paginates,
+       so the tabs must not wrap to a second line */
+    flex-wrap: nowrap;
+    max-width: 100%;
+    overflow-x: auto;
+    scrollbar-width: none;
   }
+  .theme-switcher::-webkit-scrollbar { display: none; }
 
   .theme-tab {
     position: relative;
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 0 16px;
+    gap: 7px;
+    padding: 0 12px;
     height: 32px;
     border-radius: 9999px;
     font-size: 14px;
@@ -1623,6 +1685,8 @@ export const showcaseStyles = `
     z-index: 1;
     user-select: none;
     text-transform: capitalize;
+    white-space: nowrap;
+    flex: none;
   }
 
   .theme-tab:hover { color: var(--gray12); }
@@ -1682,16 +1746,21 @@ export const showcaseStyles = `
     .demo-hint { display: none; }
   }
 
+  /* Active-tab indicator routed through the amber accent (the app-logo icons
+     stay the only saturated color). */
   .theme-tab-bg {
     position: absolute;
     inset: 0;
-    background: var(--grayA5);
+    background: color-mix(in srgb, var(--accent) 15%, transparent);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 30%, transparent);
     border-radius: 9999px;
     z-index: 0;
   }
 
+  .theme-tab[data-active] { color: var(--text); }
+
   .theme-tab[data-active]:hover .theme-tab-bg {
-    background: var(--grayA6);
+    background: color-mix(in srgb, var(--accent) 22%, transparent);
   }
 
   .theme-arrow {
@@ -1716,54 +1785,58 @@ export const showcaseStyles = `
     pointer-events: none;
   }
 
+  /* Single demo CTA (deduped) + the repurposed docs link, sharing the
+     showcase spine below the source. */
   .demo-cta-row {
     display: flex;
-    justify-content: center;
-    margin-top: 22px;
+    align-items: center;
+    gap: 18px;
+    flex-wrap: wrap;
+    margin-top: 20px;
   }
   .demo-cta {
     display: inline-flex;
     align-items: center;
     gap: 7px;
-    padding: 0 18px;
-    height: 38px;
+    padding: 0 16px;
+    height: 36px;
     border-radius: 9999px;
     font-size: 14px;
     font-weight: 500;
-    color: var(--gray12);
+    color: var(--accent-2);
     text-decoration: none;
-    background: var(--grayA3);
-    box-shadow: inset 0 0 0 1px var(--grayA4);
+    background: color-mix(in srgb, var(--accent) 10%, transparent);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 32%, transparent);
     transition: background 150ms ease;
   }
-  .demo-cta:hover { background: var(--grayA5); }
+  .demo-cta:hover { background: color-mix(in srgb, var(--accent) 16%, transparent); }
   .demo-cta svg { transition: transform 150ms ease; }
   .demo-cta:hover svg { transform: translateX(2px); }
+  .dark .demo-cta { color: #fbbf24; }
 
-  .tab-demo-link {
-    display: flex;
+  .docs-link {
+    display: inline-flex;
     align-items: center;
-    justify-content: center;
     gap: 5px;
-    margin-top: 16px;
     font-size: 13px;
     color: var(--gray9);
     text-decoration: none;
     transition: color 150ms ease;
   }
-  .tab-demo-link:hover {
+  .docs-link:hover {
     color: var(--gray12);
   }
-  .tab-demo-link:hover svg {
+  .docs-link:hover svg {
     transform: translateX(2px);
   }
-  .tab-demo-link svg {
+  .docs-link svg {
     transition: transform 150ms ease;
   }
 
   /* ─── Code block — matches cmdk styling ─── */
+  /* Tight to the palette so UI → source reads as one continuous unit. */
   .code-area {
-    margin: 56px auto 0;
+    margin: 14px 0 0;
     width: 100%;
     max-width: 640px;
     position: relative;
@@ -1782,10 +1855,10 @@ export const showcaseStyles = `
     overflow-x: auto;
     white-space: pre-wrap;
     tab-size: 2;
-    /* Hairline card, not a floating panel — matches /learn's .ls-card
-       surface treatment. (The palette itself keeps its modal shadow; that
-       floating-palette look is the showcase's point.) */
-    box-shadow: none;
+    /* IDENTICAL surface to the palette above (same border, radius, and soft
+       --card-shadow) so palette → source reads as one continuous "here's the
+       UI, here's the code" unit — /learn's flat hairline-card kit. */
+    box-shadow: var(--card-shadow);
     position: relative;
     margin: 0;
   }
@@ -1794,7 +1867,9 @@ export const showcaseStyles = `
     background: var(--grayA3);
   }
 
-  /* Syntax highlighting — subtle warm tones */
+  /* Syntax highlighting — multicolor code tokens (purple keywords / blue tags /
+     green strings / amber attrs), the same schema-chip palette /learn shows in
+     its code. Distinct from the single-amber chrome accent by design. */
   .hl-kw { color: #8b5cf6; }
   .hl-tag { color: #3b82f6; }
   .hl-str { color: #10b981; }
@@ -1836,9 +1911,11 @@ export const showcaseStyles = `
     width: 16px;
     height: 16px;
   }
+  /* Same amber copy-confirm as the install button — no green second accent. */
   .code-copy-btn[data-copied] {
-    color: #22c55e;
+    color: var(--accent-2);
   }
+  .dark .code-copy-btn[data-copied] { color: #fbbf24; }
 
   .arrow-hint {
     font-size: 12px;
@@ -1898,24 +1975,26 @@ export const showcaseStyles = `
   }
 
   /* ─── Responsive ─── */
+
+  /* Stack the hero: copy first, live showcase below (palette stays fully
+     visible). */
+  @media (max-width: 980px) {
+    .hero {
+      grid-template-columns: 1fr;
+      gap: 36px;
+      padding: 56px 0 32px;
+    }
+    .hero-copy { max-width: 34rem; }
+    .demo-area, .code-area { max-width: none; }
+  }
+
   @media (max-width: 640px) {
-    .header {
-      padding: 48px 0 32px;
-      flex-direction: column;
-      gap: 16px;
-    }
-
-    .header-right {
-      padding-top: 0;
-    }
-
     .page-title {
       font-size: 32px;
     }
 
     .tagline {
       font-size: 27px;
-      max-width: none;
     }
 
     .theme-switcher {
@@ -1936,17 +2015,32 @@ export const showcaseStyles = `
       border-radius: 12px;
     }
 
+    /* Install + GitHub become a deliberate stacked pair — full-width, matched
+       heights and radii — so GitHub is not an orphaned tag and the long npm
+       command never gets squished. */
+    .hero-actions {
+      flex-direction: column;
+      align-items: stretch;
+      width: 100%;
+      gap: 8px;
+    }
+    .hero-actions .install-btn,
+    .hero-actions .github-link {
+      width: 100%;
+      justify-content: center;
+      height: 42px;
+    }
+
     .install-btn {
-      font-size: 12px;
-      height: 34px;
-      padding: 0 6px 0 12px;
-      gap: 10px;
+      font-size: 13px;
+      padding: 0 8px 0 16px;
+      gap: 12px;
     }
 
     .github-link {
-      font-size: 12px;
-      height: 34px;
-      padding: 0 10px;
+      font-size: 13px;
+      padding: 0 12px;
     }
+    .hero-walkthrough { width: 100%; justify-content: center; }
   }
 `
