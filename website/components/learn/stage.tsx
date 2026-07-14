@@ -190,6 +190,26 @@ export function LearnStage(props: LearnStageProps) {
     if (stage === S.PALETTE) setPaletteEpoch((e) => e + 1)
   }, [stage])
 
+  // D2 — the quiet success beat: when the approved plan finishes all three
+  // calls, the three device cards give ONE gentle synchronized pulse (each in
+  // its own accent hue). One-shot, ~600ms, and never armed under reduced
+  // motion (the flag gates the data attr, so the CSS animation can't run).
+  const [celebrate, setCelebrate] = useState(false)
+  useEffect(() => {
+    if (props.approval.status !== 'done' || reducedMotion) {
+      setCelebrate(false)
+      return
+    }
+    setCelebrate(true)
+    const t = setTimeout(() => setCelebrate(false), 650)
+    return () => clearTimeout(t)
+  }, [props.approval.status, reducedMotion])
+
+  // Finding 12 — the device row is the SUBJECT on stages 1 and 5 (full
+  // saturation) and background CONTEXT on stages 0 and 3 (gently desaturated),
+  // so attention follows the lesson. Applied on the persistent wrap only.
+  const devicesDimmed = stage === S.PIXELS || stage === S.AGENT
+
   const zones: [string, boolean, ReactNode][] = [
     ['pixels', stage === S.PIXELS, <PixelsZone key="z-pixels" />],
     [
@@ -236,7 +256,12 @@ export function LearnStage(props: LearnStageProps) {
           they condense (controls hide, padding tightens) instead of
           unmounting. The walkthrough's object never leaves the stage, and
           the first device card's top edge never moves. */}
-      <div className="ls-devices-wrap" data-condensed={stage === S.SHIP || undefined}>
+      <div
+        className="ls-devices-wrap"
+        data-condensed={stage === S.SHIP || undefined}
+        data-dim={devicesDimmed || undefined}
+        data-celebrate={celebrate || undefined}
+      >
         <Devices {...props} T={T} tune={tune} />
       </div>
 
@@ -453,15 +478,21 @@ function ToolRail({
 
       <Collapse show={stage === S.AGENT}>
         <div className="ls-chrome-block ls-chrome-block--below">
-          <p className="ls-card-note">{copy.note}</p>
+          {/* live/simulated disclosure — body-copy contrast + hairline marker
+              so the honesty reads as designed, not fine print. Meaning is
+              unchanged (see agentModeCopy). */}
+          <p className="ls-card-note ls-honesty">{copy.note}</p>
         </div>
       </Collapse>
 
       <Collapse show={stage === S.PLAN}>
         <div className="ls-chrome-block ls-chrome-block--below">
-          <p className="ls-card-note">
+          {/* Honesty disclosure — lifted to body-copy contrast with an
+              intentional hairline marker (see .ls-honesty). The provider list
+              lives ONCE, in the prose card (page.tsx STEPS 'plan'); this
+              footnote owns only the scripted-planner truth. */}
+          <p className="ls-card-note ls-honesty">
             Planner scripted for this walkthrough — keyword matching, not a live LLM.
-            In your app you plug in Anthropic, OpenAI, Gemini, or your own provider.
           </p>
         </div>
       </Collapse>
@@ -721,7 +752,15 @@ function Devices({
       {/* Light */}
       <div
         className={`ls-device ${flash.has('light') ? 'ls-device--flash' : ''}`}
-        style={{ '--device-accent': TOOL_ACCENTS.set_lights } as React.CSSProperties}
+        style={
+          {
+            '--device-accent': TOOL_ACCENTS.set_lights,
+            // D4 — the light responds to itself: the glow intensity IS the
+            // brightness (0–1). Dragging the brightness slider in the real
+            // form (stage 2) visibly warms this card. Honest and physical.
+            '--glow': home.light.on ? home.light.level / 100 : 0,
+          } as React.CSSProperties
+        }
       >
         <div className="ls-device-head">
           <span className="ls-device-icon" data-lit={home.light.on || undefined}>{LearnIcons.lightbulb}</span>
@@ -940,7 +979,7 @@ const SHIP_STATUS = [
   'WebMCP is a Chrome origin trial (Chrome 149–156), not a shipped standard. The API even moved mid-trial, from navigator.modelContext to document.modelContext.',
   'It is being developed in the W3C Web Machine Learning Community Group.',
   'Firefox and Safari don’t have it.',
-  'agentk feature-detects: without WebMCP you still ship a full command palette. Nothing breaks.',
+  'agentk feature-detects: without WebMCP you still ship a command palette. Nothing breaks.',
 ]
 
 const SHIP_LINKS = [

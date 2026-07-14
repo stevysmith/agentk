@@ -117,7 +117,10 @@ export const WALKTHROUGH_PROMPT = 'Movie night: dim the lights and play somethin
 
 const MOVIE_NIGHT_PLAN: PlanCall[] = [
   { toolName: 'set_lights', parameters: { level: 20 }, note: '"dim the lights"' },
-  { toolName: 'set_thermostat', parameters: { temp: 70 }, note: 'cozy viewing temperature' },
+  // Honest provenance: the keyword matcher has no temperature cue in the
+  // prompt — this call comes from the "movie" preset, not inference. The note
+  // must not imply the matcher reasoned about "cozy" warmth (it can't).
+  { toolName: 'set_thermostat', parameters: { temp: 70 }, note: 'movie-night preset' },
   { toolName: 'play_music', parameters: { genre: 'ambient' }, note: '"something moody"' },
 ]
 

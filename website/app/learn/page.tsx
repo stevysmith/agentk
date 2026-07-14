@@ -96,7 +96,7 @@ const STEPS: Step[] = [
     title: 'Declare what the page can do.',
     body: [
       'WebMCP flips the approach. Instead of making agents guess, the page declares its capabilities as tools: a name, a description, and a JSON Schema for the inputs. That’s the whole contract.',
-      'I defined these once. Three devices became three typed, callable functions — each card on the stage is matched to the device it controls.',
+      'I defined these once. Three devices became three typed, callable functions — each card in the panel is matched to the device it controls.',
     ],
   },
   {
@@ -104,7 +104,7 @@ const STEPS: Step[] = [
     title: 'Humans get a palette. Free.',
     body: [
       'The same definitions render a command palette for people. Pick a tool and the parameter form is generated straight from its schema — an enum becomes a dropdown, a bounded number becomes a slider.',
-      'Try it. The palette on the stage is live, and it drives the devices above it.',
+      'Try it. The palette in the panel is live, and it drives the devices above it.',
     ],
   },
   // ORIGIN-TRIAL RENEWAL CHECKLIST (token expires 2026-11-17 — see
@@ -115,10 +115,10 @@ const STEPS: Step[] = [
   // re-verify this copy whenever the token is renewed or allowed to expire.
   {
     id: 'agent',
-    title: 'Agents see the same page differently.',
+    title: 'The same page, as an agent sees it.',
     body: [
       'This is the agent’s-eye view: the tools registered on document.modelContext right now. No scraping, no guessing — a typed catalog.',
-      'This site serves Chrome’s WebMCP origin-trial token. If your browser has the API, this page registered its three tools for real and the panel says live. If not, the panel shows the same content, labeled simulated. Both states are the truth.',
+      'This site serves Chrome’s WebMCP origin-trial token. If your browser has the API, this page registered its three tools for real. If not, the panel shows the same content, labeled simulated. Both states are the truth.',
     ],
   },
   {
@@ -133,19 +133,26 @@ const STEPS: Step[] = [
     id: 'approval',
     title: 'You stay in the loop.',
     body: [
-      'A plan is not an action. With requireApproval turned on, agentk shows the plan and waits for a human.',
-      'Approval is opt-in — execution is instant by default, and you gate what warrants a human. Click Approve and watch the devices actually change.',
+      // Human framing lives here; the on-stage footnote owns the requireApproval
+      // mechanic (opt-in / auto-execute-by-default), so the two no longer restate
+      // each other.
+      'A plan is not an action. With approval turned on, agentk shows you the plan and waits — nothing touches the devices until you say go.',
+      'Click Approve & run and watch the devices actually change.',
     ],
   },
   {
     id: 'ship',
     title: 'Ship it — with honest expectations.',
     body: [
-      'WebMCP is early. It’s a Chrome origin trial, not a shipped standard, and agentk degrades to a plain command palette without it. That’s the deal today, stated plainly.',
+      'WebMCP is early. It’s a Chrome origin trial, not a shipped standard, and agentk degrades to a command palette without it. That’s the deal today.',
       'If the trade sounds right, everything you just used is one npm install away.',
     ],
   },
 ]
+
+// D1 — module-level guard so the DevTools easter egg logs exactly once per
+// load, even through React 18/19 StrictMode's double-invoked effects.
+let easterEggLogged = false
 
 // ─────────────────────────────────────────────────────────
 // Page
@@ -153,6 +160,11 @@ const STEPS: Step[] = [
 
 export default function LearnPage() {
   const [stage, setStage] = useState<number>(STAGE.PIXELS)
+  // Home state is written ONLY by executeTool (light/thermostat/music) — never
+  // reset on a stage change. So the executed plan (light 20 / thermostat 70 /
+  // ambient) persists into the stage-6 condensed device row instead of snapping
+  // back to defaults. Do NOT add a reset-on-ship effect here: it would revert
+  // the earned final state the walkthrough is meant to show off.
   const [home, setHome] = useState<HomeState>(INITIAL_HOME)
   const [flash, setFlash] = useState<Set<string>>(new Set())
   const [approval, setApproval] = useState<ApprovalState>({ status: 'pending', doneCount: 0 })
@@ -286,6 +298,31 @@ export default function LearnPage() {
     setApproval({ status: 'pending', doneCount: 0 })
   }, [])
 
+  // ─── D1: developer console easter egg (client-only, once) ───
+  // For the curious dev who opens DevTools. Strictly truthful: it detects
+  // whether a WebMCP surface actually exists in THIS browser and phrases the
+  // claim accordingly — "live right now" only when document/navigator
+  // .modelContext is present; otherwise the honest origin-trial framing.
+  useEffect(() => {
+    if (easterEggLogged) return
+    easterEggLogged = true
+    const activeSurface =
+      'modelContext' in document
+        ? 'document.modelContext'
+        : 'modelContext' in navigator
+          ? 'navigator.modelContext'
+          : null
+    const names = LEARN_TOOLS.map((t) => WEBMCP_PREFIX + t.name).join(', ')
+    const reality = activeSurface
+      ? `These three tools — ${names} — are live on ${activeSurface} right now. An agent on this page can call them.`
+      : `Load this page in Chrome with the WebMCP origin trial and these three tools — ${names} — register on document.modelContext for real. This browser doesn't expose it, so the walkthrough runs in honest simulation.`
+    console.log(
+      `%cagentk%c · a command palette for the agentic web.\n${reality}\nSource: https://github.com/stevysmith/agentk`,
+      'font-weight:700;color:#f59e0b',
+      'color:inherit',
+    )
+  }, [])
+
   // ─── Scroll → stage (rAF-throttled scroll handler on step sections) ───
 
   useEffect(() => {
@@ -370,7 +407,7 @@ export default function LearnPage() {
             <h1>What is WebMCP?</h1>
             <p>
               A two-minute walkthrough. I built a tiny smart home into this page &mdash;
-              scroll, and watch the stage change.
+              scroll, and watch the live panel change.
             </p>
           </div>
 
@@ -637,15 +674,41 @@ const learnStyles = `
                 padding var(--skin-ms, 420ms) var(--ease-soft);
   }
 
+  /* D3 — tool-identity hover glow: the lift raises a subtle shadow tinted in
+     the device's own accent, keeping the color identity tactile. */
   .ls-device:hover {
     transform: translateY(-1px);
     border-color: var(--border-focus);
+    box-shadow: 0 6px 22px -10px color-mix(in srgb, var(--device-accent, var(--accent)) 55%, transparent);
   }
 
+  /* The post-run flash glows in the card's OWN accent (was a hardcoded blue
+     that fired on all three cards, reading as set_thermostat identity). Now
+     matches the sibling delights D2 (celebrate) and D3 (hover), which already
+     key off --device-accent. Same 18px radius / low alpha — no layout impact. */
   .ls-device--flash,
   .ls-device--flash:hover {
     border-color: var(--device-accent, var(--accent));
-    box-shadow: 0 0 18px rgba(59, 130, 246, 0.15);
+    box-shadow: 0 0 18px color-mix(in srgb, var(--device-accent, var(--accent)) 15%, transparent);
+  }
+
+  /* Finding 12 — the device row desaturates when it is background context
+     (stages 0 and 3) and returns to full saturation when it is the subject
+     (1 and 5). Applied to the persistent wrap; no abs descendants live inside
+     it, so the filter's containing-block effect is inert here. */
+  .ls-devices-wrap { transition: filter 380ms var(--ease-soft); }
+  .ls-devices-wrap[data-dim] { filter: saturate(0.6); }
+
+  /* D2 — the success beat: when the approved plan finishes all three calls,
+     each card gives ONE gentle pulse in its own accent, all synchronized.
+     Armed only when not reduced-motion (the data attr is JS-gated). */
+  @keyframes ls-celebrate {
+    0%   { transform: translateY(0); box-shadow: none; }
+    35%  { transform: translateY(-2px); box-shadow: 0 0 20px -2px color-mix(in srgb, var(--device-accent, var(--accent)) 60%, transparent); }
+    100% { transform: translateY(0); box-shadow: none; }
+  }
+  .ls-devices-wrap[data-celebrate] .ls-device {
+    animation: ls-celebrate 600ms var(--ease-soft);
   }
 
   .ls-device-head { display: flex; align-items: center; gap: 6px; }
@@ -655,9 +718,12 @@ const learnStyles = `
     color: var(--text-3);
     transition: color 300ms ease, filter 300ms ease;
   }
+  /* D4 — the bulb's glow radius scales with --glow (= brightness/100, set on
+     the light card). Dragging brightness in the real form visibly warms it.
+     Cards without --glow (music) fall back to a steady mid glow. */
   .ls-device-icon[data-lit] {
     color: var(--device-accent, var(--accent));
-    filter: drop-shadow(0 0 6px var(--device-accent, transparent));
+    filter: drop-shadow(0 0 calc(3px + var(--glow, 0.4) * 9px) var(--device-accent, transparent));
   }
 
   .ls-device-name { font-size: 12px; font-weight: 600; color: var(--text); flex: 1; }
@@ -794,6 +860,31 @@ const learnStyles = `
     padding-top: 10px;
   }
 
+  /* Finding 7 — honesty disclosures (scripted-planner line, live/simulated
+     note) are load-bearing truth, not fine print. Lift them to body-copy
+     contrast (--text-2) and give them a deliberate hairline box + leading
+     marker dot that echoes the "simulated" pill, so the honesty reads as
+     designed. Meaning is unchanged — this is weight, not wording. */
+  .ls-card-note.ls-honesty {
+    color: var(--text-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: rgba(255, 255, 255, 0.02);
+    padding: 9px 11px;
+    display: flex;
+    gap: 8px;
+  }
+  .ls-card-note.ls-honesty::before {
+    content: '';
+    flex-shrink: 0;
+    width: 6px;
+    height: 6px;
+    margin-top: 6px;
+    border-radius: 50%;
+    background: var(--text-3);
+    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.04);
+  }
+
   /* Stage 0: DOM soup */
   .ls-soup {
     background: var(--bg);
@@ -861,7 +952,8 @@ const learnStyles = `
                 box-shadow var(--skin-ms, 420ms) var(--ease-soft),
                 padding var(--skin-ms, 420ms) var(--ease-soft),
                 border-radius var(--skin-ms, 420ms) var(--ease-soft),
-                margin var(--skin-ms, 420ms) var(--ease-soft);
+                margin var(--skin-ms, 420ms) var(--ease-soft),
+                filter 160ms var(--ease-soft);
   }
 
   /* stage 3 — agent's-eye rows (hairline dividers, no card) */
@@ -883,8 +975,13 @@ const learnStyles = `
     margin-bottom: 6px;
   }
 
-  /* hover highlight at stages 2-5 only */
-  .ls-rail[data-hoverable] .ls-row:hover { background: rgba(255,255,255,0.05); }
+  /* hover highlight at stages 2-5 only. D3 — the lift also raises a subtle
+     drop-shadow in the row's own tool accent (filter, so it never collides
+     with the box-shadow skin-morph transition). */
+  .ls-rail[data-hoverable] .ls-row:hover {
+    background: rgba(255,255,255,0.05);
+    filter: drop-shadow(0 4px 14px color-mix(in srgb, var(--tool-accent, var(--accent)) 38%, transparent));
+  }
 
   .ls-row-head {
     display: flex;
@@ -922,7 +1019,10 @@ const learnStyles = `
   .ls-row-desc { font-size: 12px; color: var(--text-2); padding-top: 4px; }
   .ls-row-schema { display: flex; flex-wrap: wrap; gap: 6px; padding-top: 8px; }
   .ls-row-call { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding-top: 8px; }
-  .ls-row-note { font-size: 11px; color: var(--text-3); margin-left: auto; }
+  /* Left-grouped beside its param chips (no margin-left:auto): the source
+     annotation sits next to the payload instead of stranding across a dead
+     center on a wide row. */
+  .ls-row-note { font-size: 11px; color: var(--text-3); align-self: center; }
 
   .ls-param {
     display: inline-flex;
@@ -939,8 +1039,13 @@ const learnStyles = `
   .ls-param-key { color: var(--text); }
   .ls-param-type { color: var(--accent); }
   .ls-param-detail { color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .ls-param--call { background: rgba(59, 130, 246, 0.08); border-color: rgba(59, 130, 246, 0.25); font-size: 11px; }
-  .ls-call-value { color: var(--accent); font-weight: 600; }
+  /* The planned-call chip carries the row's OWN tool accent — was a hardcoded
+     blue (and the value used --accent = the set_thermostat hex), which read as
+     thermostat identity on the amber-light (level: 20) and violet-music
+     (genre: ambient) rows. Blue now appears here only on the thermostat row,
+     whose --tool-accent IS #3b82f6. Alphas/weights match the old blue. */
+  .ls-param--call { background: color-mix(in srgb, var(--tool-accent, var(--accent)) 8%, transparent); border-color: color-mix(in srgb, var(--tool-accent, var(--accent)) 25%, transparent); font-size: 11px; }
+  .ls-call-value { color: var(--tool-accent, var(--accent)); font-weight: 600; }
 
   /* ── real <Command> palette embed (stage 2) ──
      Stage 2 renders the ACTUAL shipped agentk <Command> (see
@@ -959,6 +1064,59 @@ const learnStyles = `
   .ls-palette-embed [data-agentk-form],
   .ls-palette-embed [data-agentk-result] { padding: 0 16px 16px; }
   .ls-palette-embed [data-agentk-form-heading] { padding: 14px 0; margin-bottom: 16px; }
+
+  /* Finding 1 — carry the stage's color language into the REAL palette (scoped
+     overrides only; the shipped <Command> is untouched). Each item exposes
+     data-agentk-tool="<name>", so we tint per tool by that hook. */
+
+  /* leading icon tinted to the tool's hue — held even when the row is selected
+     ([cmdk-item] bumps specificity past the global selected-icon rule) */
+  .ls-palette-embed [cmdk-item][data-agentk-tool="set_lights"] [data-agentk-tool-icon] { color: #f59e0b; }
+  .ls-palette-embed [cmdk-item][data-agentk-tool="set_thermostat"] [data-agentk-tool-icon] { color: #3b82f6; }
+  .ls-palette-embed [cmdk-item][data-agentk-tool="play_music"] [data-agentk-tool-icon] { color: #a78bfa; }
+
+  /* selection highlight + bar recolored to the SELECTED tool's hue, not the
+     generic blue (which now reads only as set_thermostat identity) */
+  .ls-palette-embed [cmdk-item][data-agentk-tool="set_lights"][data-selected="true"] { background: color-mix(in srgb, #f59e0b 12%, transparent); color: var(--text); }
+  .ls-palette-embed [cmdk-item][data-agentk-tool="set_thermostat"][data-selected="true"] { background: color-mix(in srgb, #3b82f6 12%, transparent); color: var(--text); }
+  .ls-palette-embed [cmdk-item][data-agentk-tool="play_music"][data-selected="true"] { background: color-mix(in srgb, #a78bfa 12%, transparent); color: var(--text); }
+  .ls-palette-embed [cmdk-item][data-agentk-tool="set_lights"][data-selected="true"]::before { background: #f59e0b; }
+  .ls-palette-embed [cmdk-item][data-agentk-tool="set_thermostat"][data-selected="true"]::before { background: #3b82f6; }
+  .ls-palette-embed [cmdk-item][data-agentk-tool="play_music"][data-selected="true"]::before { background: #a78bfa; }
+
+  /* the monospace identifier stays visible as a trailing mono tag right next to
+     the human label (order:2), so set_lights never silently becomes only
+     "Set Lights". Content is the item's own data-agentk-tool attribute. */
+  .ls-palette-embed [cmdk-item][data-agentk-tool] { flex-wrap: wrap; }
+  .ls-palette-embed [cmdk-item][data-agentk-tool] [data-agentk-tool-icon] { order: 0; }
+  .ls-palette-embed [cmdk-item][data-agentk-tool] [data-agentk-tool-name] { order: 1; }
+  .ls-palette-embed [cmdk-item][data-agentk-tool]::after {
+    content: attr(data-agentk-tool);
+    order: 2;
+    font-family: var(--mono);
+    font-size: 11px;
+    line-height: 1;
+    color: var(--text-3);
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border);
+  }
+  /* Finding 11 — description left-grouped beside the name (was margin-left:auto,
+     which stranded it at the far right leaving a dead center) */
+  .ls-palette-embed [cmdk-item][data-agentk-tool] [data-agentk-tool-description] {
+    order: 3;
+    margin-left: 0;
+    text-align: left;
+    max-width: 100%;
+    color: var(--text-3);
+  }
+
+  /* Finding 4 — the palette's Execute button MATCHES the walkthrough's one
+     primary grammar (solid light fill, dark text), same as "Approve & run".
+     Cancel is already a ghost from globals. Blue is no longer a primary CTA. */
+  .ls-palette-embed [data-agentk-form-submit] { background: #ececec; color: #141414; }
+  .ls-palette-embed [data-agentk-form-submit]:hover { background: #ffffff; }
 
   /* ── agent chrome (stage 3) ── */
 
@@ -1179,6 +1337,14 @@ const learnStyles = `
     .ls-panel { max-height: calc(60vh - 20px); }
     .ls-zone { flex: 1; }
 
+    /* Finding 3 — the sticky stage must be a solid scrim: the wrap AND the
+       panel paint an opaque --bg so prose scrolling underneath is fully
+       hidden, never half-visible straddling the bottom edge. The only
+       see-through is the ::after gradient below, which is the intentional
+       dissolve at the very bottom. */
+    .learn-stage-wrap { background: var(--bg); }
+    .ls-panel { background: var(--bg); }
+
     .learn-intro h1 { font-size: 32px; }
 
     .learn-step { min-height: 62vh; }
@@ -1206,6 +1372,14 @@ const learnStyles = `
     .ls-card { padding: 12px; }
     .ls-soup { font-size: 11px; }
     .ls-prompt { font-size: 13.5px; padding: 10px 12px; }
+
+    /* Finding 10 — real touch targets on a ~390px phone: the thermostat -/+
+       and the Play/Stop button reach >=40px, and the mono chips floor at 11px
+       so identifiers stay legible. */
+    .ls-step-btn { min-height: 40px; font-size: 17px; }
+    .ls-play-btn { min-height: 40px; }
+    .ls-device-chip { font-size: 11px; }
+    .ls-param { font-size: 11px; }
   }
 
   /* ─── Reduced motion: no ambient animation, instant everything.
@@ -1216,6 +1390,9 @@ const learnStyles = `
     .ls-eq-bar { animation: none; height: 10px; }
     .ls-call-spinner { animation: none; }
     .ls-approve-dock [data-agentk-approval-approve][data-running] { animation: none; }
+    /* D2 is JS-gated off under reduced motion; this is belt-and-suspenders. */
+    .ls-devices-wrap[data-celebrate] .ls-device { animation: none; }
+    .ls-devices-wrap { transition: none; }
     .learn-step-card,
     .ls-device,
     .ls-toggle-knob,
