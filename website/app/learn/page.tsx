@@ -621,14 +621,13 @@ const learnStyles = `
 
   .ls-zone {
     min-height: 0;
-    overflow-y: auto;
-    overscroll-behavior: contain;
+    /* No inner scroll: the zone sizes to its active member and the whole
+       page scrolls, so the wheel is never captured by the stage (an inner
+       overflow here scroll-jacked the page when the cursor was over the
+       panel). Every stage's content fits the sticky wrap; overflow stays
+       visible so nothing clips even on short viewports. */
     position: relative; /* anchor for inactive (absolute) zones */
-    scrollbar-width: thin;
-    scrollbar-color: var(--border) transparent;
   }
-  .ls-zone::-webkit-scrollbar { width: 6px; }
-  .ls-zone::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
   .ls-zone-inner { width: 100%; }
 
   /* ─── Devices ─── */
@@ -1309,11 +1308,11 @@ const learnStyles = `
       position: sticky;
       top: 0;
       z-index: 40;
-      /* auto-size to the stage's content (capped) instead of a fixed
-         height: shorter stages take less of the viewport, taller stages
-         get enough room that all three tool rows stay visible */
+      /* auto-size to the stage's content — no cap and no inner scroll, so
+         the page always scrolls (the 60vh cap + inner overflow used to
+         scroll-jack). Tallest stage is ~460px, comfortably under a phone
+         viewport, so the pinned stage still leaves room for prose below. */
       height: auto;
-      max-height: 60vh;
       padding: 10px 0;
       background: var(--bg);
       box-shadow: 0 12px 24px -18px rgba(0,0,0,0.9);
@@ -1332,10 +1331,8 @@ const learnStyles = `
       pointer-events: none;
     }
 
-    /* wrap height is auto, so the cap must live on the panel itself
-       (60vh minus the wrap's 10px vertical paddings) */
-    .ls-panel { max-height: calc(60vh - 20px); }
-    .ls-zone { flex: 1; }
+    /* no cap, no inner scroll — the panel sizes to content so the page
+       scrolls freely (was max-height + overflow, which scroll-jacked) */
 
     /* Finding 3 — the sticky stage must be a solid scrim: the wrap AND the
        panel paint an opaque --bg so prose scrolling underneath is fully
