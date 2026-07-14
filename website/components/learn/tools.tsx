@@ -32,6 +32,13 @@ export const LearnIcons = {
   ),
 }
 
+// ─── WebMCP name prefix ───
+// Single source for the `learn_` prefix: page.tsx registers tools with it
+// and stage.tsx renders it (stage 3), so the displayed name can never
+// drift from the name actually registered on the WebMCP surface.
+
+export const WEBMCP_PREFIX = 'learn_'
+
 // ─── Device ↔ tool accent colors (visual connection on the stage) ───
 
 export const TOOL_ACCENTS: Record<string, string> = {

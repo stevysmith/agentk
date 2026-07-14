@@ -3,11 +3,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useReducedMotion } from 'framer-motion'
 import { useWebMCPRegistration, useWebMCPTools } from 'agentk'
-import { LearnStage, type ApprovalState, type WebMCPPanel } from '../../components/learn/stage'
+import { LearnStage, TUNE, type ApprovalState, type WebMCPPanel } from '../../components/learn/stage'
 import {
   LEARN_TOOLS,
   INITIAL_HOME,
   WALKTHROUGH_PROMPT,
+  WEBMCP_PREFIX,
   matchPlan,
   summarizeSchema,
   type HomeState,
@@ -22,26 +23,31 @@ import {
  * handler picks the step section owning the viewport midpoint
  * (remount-immune — an IntersectionObserver here went stale).
  *
+ * The stage's centerpiece is ONE persistent tool rail (the
+ * three tool rows) that morphs its skin from stage 1 through
+ * stage 5 — see components/learn/stage.tsx for the full
+ * storyboard. Only stages 0 and 6 are crossfade zones.
+ *
  * stage 0  A tiny smart-home mini-app (light, thermostat,
  *          music). Interactive toggles that work. Copy:
  *          agents today browse like humans — scraping DOM
  *          and clicking. This page looks like pixels to them.
- * stage 1  The page declares its capabilities: JSON Schema
- *          tool cards fade in, connected visually to the
- *          devices they control.
- * stage 2  Humans get a palette: live inline palette on the
- *          stage; selecting a tool shows the auto-generated
+ * stage 1  The page declares its capabilities: the rail rows
+ *          land as JSON Schema tool cards, connected visually
+ *          to the devices they control.
+ * stage 2  Humans get a palette: palette chrome around the
+ *          same rows; expanding a row shows the auto-generated
  *          form (enum → dropdown, bounded number → slider).
- * stage 3  Agents see the same page differently: an
- *          agents-eye panel of tools on document.modelContext
- *          RIGHT NOW — real registration (learn_ prefix) when
- *          the API exists, honestly-labeled simulation when not.
+ * stage 3  Agents see the same page differently: agent chrome
+ *          around the same rows, names gain the learn_ prefix
+ *          — real registration when the API exists, honestly-
+ *          labeled simulation when not.
  * stage 4  One sentence, planned across tools: a fixed prompt
- *          animates into 3 tool calls with params. Planner is
- *          scripted keyword matching — disclosed in the UI.
- * stage 5  Human in the loop: the plan renders as an approval
- *          screen; Approve makes the stage devices actually
- *          change. requireApproval is opt-in.
+ *          resolves into call params inside the rows. Planner
+ *          is scripted keyword matching — disclosed in the UI.
+ * stage 5  Human in the loop: an approval dock under the rows;
+ *          Approve makes the stage devices actually change.
+ *          requireApproval is opt-in.
  * stage 6  Ship it: honest status (Chrome origin trial, W3C
  *          WebML CG, not Firefox/Safari; agentk degrades to a
  *          plain palette) + npm install + links.
@@ -59,15 +65,16 @@ const STAGE = {
   SHIP: 6,
 } as const
 
+// All stage timings/springs live in the TUNE block at the top of
+// components/learn/stage.tsx (append ?tune=1 for a live panel). The two
+// values used here are read once at module load.
 const TIMING = {
-  approvalStepMs: 550, // gap between executed plan steps after Approve
-  deviceFlashMs: 600, // device card highlight after a tool runs
+  approvalStepMs: TUNE.approvalStepMs, // gap between executed plan steps after Approve
+  deviceFlashMs: TUNE.deviceFlashMs, // device card highlight after a tool runs
 }
 
 // A step activates when it crosses the middle band of the viewport.
 const STEP_ACTIVATION_MIDPOINT = 0.5 // viewport fraction that owns the active step
-
-const WEBMCP_PREFIX = 'learn_' // names registered on document.modelContext
 
 const PLAN = matchPlan(WALKTHROUGH_PROMPT) // scripted keyword matching, disclosed on the stage
 
@@ -149,7 +156,6 @@ export default function LearnPage() {
   const [home, setHome] = useState<HomeState>(INITIAL_HOME)
   const [flash, setFlash] = useState<Set<string>>(new Set())
   const [approval, setApproval] = useState<ApprovalState>({ status: 'pending', doneCount: 0 })
-  const sectionRefs = useRef<(HTMLElement | null)[]>([])
   const approvalRunRef = useRef(0)
   const reducedMotion = !!useReducedMotion()
 
@@ -218,33 +224,42 @@ export default function LearnPage() {
     else if ('modelContext' in navigator) setSurface('navigator.modelContext')
   }, [registration.active, stage])
 
-  // Origin-trial surfaces vary; treat everything read back from the browser
-  // as untrusted shape-wise and fall back to the known catalog on surprise.
-  const discoveredLearn = discovered.filter(
-    (t) => typeof t?.name === 'string' && t.name.startsWith(WEBMCP_PREFIX),
-  )
-  let liveTools: WebMCPPanel['tools'] | null = null
-  if (discoveredLearn.length > 0) {
+  // The stage-3 rail always renders the LOCAL catalog — its rows persist
+  // across stages and never remount (see stage.tsx). The readback is used
+  // as verification only: 'live-read' claims the displayed list is what the
+  // browser's WebMCP surface reports right now, so that mode is reported
+  // only when the readback provably matches the catalog — the same
+  // learn_-prefixed name set, plus matching description/params wherever the
+  // surface returns them. Any divergence (partial registration, an extra
+  // learn_ registrant, description/schema drift) demotes the badge to
+  // live-registered/simulated rather than overclaiming readback provenance.
+  // Origin-trial surfaces vary; everything read back is untrusted shape-wise.
+  const readbackMatchesCatalog = (() => {
     try {
-      liveTools = discoveredLearn.map((t) => ({
-        name: t.name,
-        description: t.description,
-        params: summarizeSchema(t.inputSchema),
-      }))
+      const discoveredLearn = discovered.filter(
+        (t) => typeof t?.name === 'string' && t.name.startsWith(WEBMCP_PREFIX),
+      )
+      if (discoveredLearn.length !== LEARN_TOOLS.length) return false
+      return LEARN_TOOLS.every((tool) => {
+        const read = discoveredLearn.find((t) => t.name === WEBMCP_PREFIX + tool.name)
+        if (!read) return false
+        if (typeof read.description === 'string' && read.description !== tool.description) return false
+        if (
+          read.inputSchema &&
+          JSON.stringify(summarizeSchema(read.inputSchema)) !==
+            JSON.stringify(summarizeSchema(tool.inputSchema))
+        ) {
+          return false
+        }
+        return true
+      })
     } catch {
-      liveTools = null
+      return false
     }
-  }
+  })()
   const webmcp: WebMCPPanel = {
-    mode: liveTools ? 'live-read' : registration.active ? 'live-registered' : 'simulated',
+    mode: readbackMatchesCatalog ? 'live-read' : registration.active ? 'live-registered' : 'simulated',
     surface,
-    tools:
-      liveTools ??
-      LEARN_TOOLS.map((t) => ({
-        name: WEBMCP_PREFIX + t.name,
-        description: t.description,
-        params: summarizeSchema(t.inputSchema),
-      })),
   }
 
   // ─── Approval flow (stage 5) ───
@@ -271,7 +286,7 @@ export default function LearnPage() {
     setApproval({ status: 'pending', doneCount: 0 })
   }, [])
 
-  // ─── Scroll → stage (IntersectionObserver on step sections) ───
+  // ─── Scroll → stage (rAF-throttled scroll handler on step sections) ───
 
   useEffect(() => {
     // rAF-throttled scroll handler instead of an IntersectionObserver: it
@@ -310,6 +325,19 @@ export default function LearnPage() {
 
   return (
     <div className="learn-page">
+      {/* Editorial serif for the h1 + step titles, scoped to /learn via the
+          CSS below (same Google Fonts mechanism as Caveat in app/layout.tsx).
+          React hoists+dedupes these into <head>; the preconnects shave the
+          connection setup off both the CSS and the woff2 fetch, and the
+          metric-tuned 'Newsreader Fallback' face in the CSS below keeps the
+          display=swap landing from shifting the headings. */}
+      <link rel="preconnect" href="https://fonts.googleapis.com" />
+      <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+      <link
+        rel="stylesheet"
+        precedence="default"
+        href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,500..600&display=swap"
+      />
       <header className="learn-header">
         <a href="/" className="learn-logo">agentk</a>
         <span className="learn-header-sep">/</span>
@@ -317,7 +345,8 @@ export default function LearnPage() {
       </header>
 
       <div className="learn-layout">
-        {/* Sticky stage — DOM-first so it stays on top on mobile */}
+        {/* Sticky stage — DOM-first so it stays on top on mobile (the intro
+            is lifted above it there via flex order; see the 900px query) */}
         <div className="learn-stage-wrap">
           <LearnStage
             stage={stage}
@@ -348,7 +377,6 @@ export default function LearnPage() {
           {STEPS.map((step, i) => (
             <section
               key={step.id}
-              ref={(el) => { sectionRefs.current[i] = el }}
               data-step-index={i}
               className="learn-step"
             >
@@ -376,6 +404,23 @@ export default function LearnPage() {
 // ─────────────────────────────────────────────────────────
 
 const learnStyles = `
+  /* Metric-tuned local fallback for Newsreader: Georgia size-adjusted with
+     capsize metrics (Newsreader@600 vs Georgia regular — the same dataset
+     next/font uses) so pre-swap headings occupy nearly the same lines and
+     the display=swap landing barely shifts layout. The 500-600 weight
+     descriptor covers exactly the range this page requests, and declaring
+     it also stops the browser from synthesizing bold (whose widths the
+     metrics can't predict). */
+  @font-face {
+    font-family: 'Newsreader Fallback';
+    src: local('Georgia');
+    font-weight: 500 600;
+    size-adjust: 100.94%;
+    ascent-override: 72.81%;
+    descent-override: 26.25%;
+    line-gap-override: 0%;
+  }
+
   .learn-page {
     min-height: 100dvh;
     background: var(--bg);
@@ -387,6 +432,14 @@ const learnStyles = `
        .ls-param-detail, .learn-step-num, …) sit on --bg-card and need
        WCAG AA 4.5:1 at these sizes. #8f8f8f is ~5.7:1 on #141414. */
     --text-3: #8f8f8f;
+    /* Editorial serif for the h1 + step titles only — loaded on this page,
+       not applied anywhere else on the site. 'Newsreader Fallback' is the
+       metric-tuned Georgia face declared above. */
+    --serif: 'Newsreader', 'Newsreader Fallback', Georgia, 'Times New Roman', serif;
+    /* Shared easing for the rail's CSS-driven chrome collapses. --chrome-ms
+       is set inline on .ls-panel from the TUNE block (0ms under reduced
+       motion), so the ?tune=1 panel drives these live too. */
+    --ease-soft: cubic-bezier(0.32, 0, 0.24, 1);
   }
 
   .learn-page :focus-visible {
@@ -429,7 +482,10 @@ const learnStyles = `
     align-items: start;
   }
 
-  .learn-steps { grid-column: 1; grid-row: 1; }
+  /* Tail room keeps the sticky stage pinned while the last step is centered —
+     without it the grid ends and the stage gets pushed up, breaking the
+     constant device-row anchor at stage 6. */
+  .learn-steps { grid-column: 1; grid-row: 1; padding-bottom: 18vh; }
   .learn-stage-wrap {
     grid-column: 2;
     grid-row: 1;
@@ -437,18 +493,28 @@ const learnStyles = `
     top: 24px;
     height: calc(100dvh - 48px);
     display: flex;
-    align-items: center;
+    /* TOP-ANCHORED, not centered: stage content grows downward from a
+       fixed origin, so the device row's top edge never moves between
+       stages (centering made it drift as content height changed). The
+       offset is constant for a given viewport and optically matches the
+       old stage-1 resting position. */
+    align-items: flex-start;
+    padding-top: clamp(48px, 16vh, 190px);
   }
 
   /* ─── Intro + step cards ─── */
 
   .learn-intro { padding: 64px 0 8px; max-width: 460px; }
   .learn-intro h1 {
-    font-size: 34px;
-    font-weight: 700;
-    letter-spacing: -0.03em;
+    font-family: var(--serif);
+    font-optical-sizing: auto;
+    font-size: 44px;
+    font-weight: 600;
+    letter-spacing: -0.015em;
+    line-height: 1.08;
+    text-wrap: balance;
     color: var(--text);
-    margin-bottom: 12px;
+    margin-bottom: 14px;
   }
   .learn-intro p { font-size: 15px; line-height: 1.6; color: var(--text-2); }
 
@@ -465,7 +531,8 @@ const learnStyles = `
     border-radius: var(--radius);
     /* 0.55, not lower: inactive steps stay legible while still receding */
     opacity: 0.55;
-    transition: opacity 300ms ease, border-color 300ms ease, background 300ms ease;
+    /* matches TUNE.zoneFadeMs so rail and stage land together */
+    transition: opacity 380ms cubic-bezier(0.32, 0, 0.24, 1), border-color 380ms cubic-bezier(0.32, 0, 0.24, 1), background 380ms cubic-bezier(0.32, 0, 0.24, 1);
   }
 
   .learn-step-card[data-active] {
@@ -476,18 +543,24 @@ const learnStyles = `
 
   .learn-step-num {
     display: block;
-    font-size: 11px;
+    font-family: var(--mono);
+    font-size: 10.5px;
     font-weight: 600;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
     color: var(--text-3);
     font-variant-numeric: tabular-nums;
     margin-bottom: 10px;
   }
 
   .learn-step-card h2 {
-    font-size: 21px;
-    font-weight: 700;
-    letter-spacing: -0.02em;
+    font-family: var(--serif);
+    font-optical-sizing: auto;
+    font-size: 26px;
+    font-weight: 580;
+    letter-spacing: -0.008em;
+    line-height: 1.22;
+    text-wrap: balance;
     color: var(--text);
     margin-bottom: 12px;
   }
@@ -523,6 +596,27 @@ const learnStyles = `
 
   /* ─── Devices ─── */
 
+  /* Devices persist through EVERY stage (stage 6 condenses them via
+     data-condensed instead of unmounting — the walkthrough never abandons
+     its object). Equal padding and negative margins cancel at rest, giving
+     the flash glow (18px) and hover lift room INSIDE the clip; flex-shrink
+     0 keeps short viewports squeezing the scrollable .ls-zone, not this. */
+  .ls-devices-wrap {
+    overflow: hidden;
+    flex-shrink: 0;
+    box-sizing: border-box;
+    padding: 20px;
+    margin: -20px;
+  }
+
+  /* Stage 6 condensed skin: the earned final state stays visible (readings,
+     light bar, eq, tool chips) while the interactive controls retire. */
+  .ls-devices-wrap[data-condensed] .ls-device { padding: 8px 10px; gap: 5px; }
+  .ls-devices-wrap[data-condensed] .ls-device-reading { font-size: 13px; }
+  .ls-devices-wrap[data-condensed] .ls-device-toggle,
+  .ls-devices-wrap[data-condensed] .ls-thermo-buttons,
+  .ls-devices-wrap[data-condensed] .ls-play-btn { display: none; }
+
   .ls-devices {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -537,10 +631,19 @@ const learnStyles = `
     display: flex;
     flex-direction: column;
     gap: 8px;
-    transition: border-color 300ms ease, box-shadow 300ms ease;
+    /* hover lift is quicker (150ms) than the flash glow (300ms); padding
+       eases for the stage-6 condensed skin */
+    transition: border-color 150ms ease, transform 150ms ease, box-shadow 300ms ease,
+                padding var(--skin-ms, 420ms) var(--ease-soft);
   }
 
-  .ls-device--flash {
+  .ls-device:hover {
+    transform: translateY(-1px);
+    border-color: var(--border-focus);
+  }
+
+  .ls-device--flash,
+  .ls-device--flash:hover {
     border-color: var(--device-accent, var(--accent));
     box-shadow: 0 0 18px rgba(59, 130, 246, 0.15);
   }
@@ -569,7 +672,18 @@ const learnStyles = `
   }
 
   .ls-bar { height: 5px; background: rgba(255,255,255,0.06); border-radius: 3px; overflow: hidden; }
-  .ls-bar-fill { height: 100%; border-radius: 3px; transition: width 400ms cubic-bezier(0.4, 0, 0.2, 1); }
+  /* width is spring-animated by framer-motion (TUNE.deviceVisualDuration) — no CSS transition */
+  .ls-bar-fill { height: 100%; border-radius: 3px; }
+
+  /* Visually-hidden twin for screen readers (springing digits are decorative) */
+  .ls-sr {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
 
   /* Toggle switch */
   .ls-device-toggle {
@@ -638,14 +752,17 @@ const learnStyles = `
     100% { height: 14px; }
   }
 
-  /* Device → tool chip (stage 1+) */
+  /* Device → tool chip (stage 1+). margin-top auto bottom-pins the chip in
+     the card's column flex (the grid stretches all three cards to equal
+     height), so the three mono chips share one baseline at the cards'
+     equal 12px bottom padding — no zigzag. */
   .ls-device-chip {
     display: flex;
     align-items: center;
     gap: 5px;
     font-family: var(--mono);
     font-size: 10px;
-    margin-top: 2px;
+    margin-top: auto;
   }
   .ls-chip-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
 
@@ -691,19 +808,148 @@ const learnStyles = `
     filter: blur(0.4px);
   }
 
-  /* Stage 1: tool cards */
-  .ls-toolcards { display: flex; flex-direction: column; gap: 8px; }
-  .ls-toolcard {
+  /* ─── Tool rail — ONE persistent catalog, morphing per stage ─── */
+
+  .ls-rail { display: flex; flex-direction: column; }
+
+  /* All-mounted show/hide: hidden chrome contributes ZERO height (grid
+     0fr trick + overflow hidden), so it can never inflate .ls-zone
+     scrollHeight and resurrect the phantom scrollbar. Spacing lives
+     INSIDE the collapsing block so hidden chrome leaves no gap either. */
+  .ls-collapse {
+    display: grid;
+    grid-template-rows: 0fr;
+    opacity: 0;
+    transition: grid-template-rows var(--chrome-ms, 260ms) var(--ease-soft),
+                opacity var(--chrome-ms, 260ms) var(--ease-soft);
+  }
+  .ls-collapse[data-show] { grid-template-rows: 1fr; opacity: 1; }
+  .ls-collapse-inner { overflow: hidden; min-height: 0; }
+
+  .ls-chrome-block { padding-bottom: 10px; }
+  .ls-chrome-block--below { padding: 8px 0 0; display: flex; flex-direction: column; }
+
+  /* ── the three persistent rows ── */
+
+  .ls-row-clip {
+    display: grid;
+    grid-template-rows: 1fr;
+    opacity: 1;
+    transition: grid-template-rows var(--chrome-ms, 260ms) var(--ease-soft),
+                opacity var(--chrome-ms, 260ms) var(--ease-soft);
+  }
+  .ls-row-clip[data-hide] { grid-template-rows: 0fr; opacity: 0; }
+  .ls-row-clip-inner { overflow: hidden; min-height: 0; }
+
+  /* default skin = stage 1 schema card (accent edge via inset shadow so
+     no border-width change ever shifts layout).
+     The skin morph itself takes visible time: --skin-ms (~420ms, TUNE
+     rowSkinMs) on every skin-affecting property with the zone-fade ease,
+     so a stage change reads as the SAME rows re-dressing mid-crossfade,
+     never a hard cut. */
+  .ls-row {
+    display: flex;
+    flex-direction: column;
     background: var(--bg-card);
     border: 1px solid var(--border);
-    border-left: 3px solid var(--tool-accent, var(--accent));
     border-radius: var(--radius-sm);
+    box-shadow: inset 3px 0 0 var(--tool-accent, var(--accent));
     padding: 10px 14px;
+    margin-bottom: 8px;
+    transition: background var(--skin-ms, 420ms) var(--ease-soft),
+                border-color var(--skin-ms, 420ms) var(--ease-soft),
+                box-shadow var(--skin-ms, 420ms) var(--ease-soft),
+                padding var(--skin-ms, 420ms) var(--ease-soft),
+                border-radius var(--skin-ms, 420ms) var(--ease-soft),
+                margin var(--skin-ms, 420ms) var(--ease-soft);
   }
-  .ls-toolcard-head { display: flex; align-items: center; gap: 7px; margin-bottom: 3px; }
-  .ls-toolcard-name { font-family: var(--mono); font-size: 13px; font-weight: 600; color: var(--text); }
-  .ls-toolcard-desc { font-size: 12px; color: var(--text-2); margin-bottom: 7px; }
-  .ls-toolcard-schema { display: flex; flex-wrap: wrap; gap: 6px; }
+
+  /* stage 2 — palette-row skin */
+  .ls-rail[data-stage="2"] .ls-row {
+    background: transparent;
+    border-color: transparent;
+    box-shadow: none;
+    padding: 8px 10px;
+    margin-bottom: 2px;
+  }
+
+  /* stage 3 — agent's-eye rows (hairline dividers, no card) */
+  .ls-rail[data-stage="3"] .ls-row {
+    background: transparent;
+    border-color: transparent;
+    border-bottom-color: rgba(255,255,255,0.04);
+    border-radius: 0;
+    box-shadow: none;
+    padding: 9px 2px;
+    margin-bottom: 0;
+  }
+
+  /* stages 4-5 — planned-invocation rows */
+  .ls-rail[data-stage="4"] .ls-row,
+  .ls-rail[data-stage="5"] .ls-row {
+    box-shadow: none;
+    padding: 9px 12px;
+    margin-bottom: 6px;
+  }
+
+  /* hover highlight at stages 2-5 only */
+  .ls-rail[data-hoverable] .ls-row:hover { background: rgba(255,255,255,0.05); }
+
+  .ls-row-head {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    width: 100%;
+    padding: 0;
+    background: none;
+    border: none;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: default;
+  }
+  .ls-rail[data-stage="2"] .ls-row-head { cursor: pointer; }
+
+  .ls-row-name { font-family: var(--mono); font-size: 13px; font-weight: 600; display: inline-flex; align-items: baseline; }
+  /* namespace prefix: inherits the tool accent and rests at 0.55 opacity
+     (framer animates it there) — a dimmed namespace before the
+     full-strength base name */
+  .ls-row-prefix { display: inline-block; overflow: hidden; white-space: nowrap; }
+
+  /* plan/approval status slot — width-collapsed until stages 4-5 */
+  .ls-row-status {
+    display: inline-flex;
+    align-items: center;
+    overflow: hidden;
+    flex-shrink: 0;
+    width: 0;
+    opacity: 0;
+    transition: width var(--chrome-ms, 260ms) var(--ease-soft),
+                opacity var(--chrome-ms, 260ms) var(--ease-soft);
+  }
+  .ls-row-status[data-show] { width: 24px; opacity: 1; }
+
+  /* palette chevron — width-collapsed except stage 2 */
+  .ls-row-chevron {
+    display: inline-flex;
+    margin-left: auto;
+    overflow: hidden;
+    flex-shrink: 0;
+    width: 0;
+    opacity: 0;
+    color: var(--text-3);
+    transition: width var(--chrome-ms, 260ms) var(--ease-soft),
+                opacity var(--chrome-ms, 260ms) var(--ease-soft),
+                transform var(--chrome-ms, 260ms) var(--ease-soft);
+  }
+  .ls-row-chevron[data-show] { width: 14px; opacity: 1; }
+  .ls-row-chevron[data-open] { transform: rotate(90deg); }
+
+  .ls-row-desc { font-size: 12px; color: var(--text-2); padding-top: 4px; }
+  .ls-row-schema { display: flex; flex-wrap: wrap; gap: 6px; padding-top: 8px; }
+  .ls-row-call { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding-top: 8px; }
+  .ls-row-note { font-size: 11px; color: var(--text-3); margin-left: auto; }
+  .ls-rail-empty { font-size: 12.5px; color: var(--text-3); padding: 6px 4px 10px; }
 
   .ls-param {
     display: inline-flex;
@@ -720,14 +966,85 @@ const learnStyles = `
   .ls-param-key { color: var(--text); }
   .ls-param-type { color: var(--accent); }
   .ls-param-detail { color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ls-param--call { background: rgba(59, 130, 246, 0.08); border-color: rgba(59, 130, 246, 0.25); font-size: 11px; }
+  .ls-call-value { color: var(--accent); font-weight: 600; }
 
-  /* Stage 2: inline palette */
-  .ls-palette { display: flex; flex-direction: column; gap: 12px; }
-  .ls-palette [cmdk-root] { box-shadow: none; }
-  .ls-palette [cmdk-list] { max-height: 200px; }
-  .ls-palette .ls-card-note { border-top: none; padding-top: 0; }
+  /* ── palette chrome (stage 2) ── */
 
-  /* Stage 3: agent's-eye */
+  .ls-palette-input {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 9px 12px;
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 13px;
+  }
+  .ls-palette-input::placeholder { color: var(--text-3); }
+  .ls-palette-group {
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-3);
+    padding: 12px 2px 0;
+  }
+
+  /* inline schema-generated form (stage 2) */
+  .ls-row-form { display: flex; flex-direction: column; gap: 10px; padding: 10px 2px 4px; }
+  .ls-form-field { display: flex; flex-direction: column; gap: 5px; }
+  .ls-form-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-2);
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+  }
+  .ls-form-value { color: var(--tool-accent, var(--accent)); font-variant-numeric: tabular-nums; }
+  .ls-form-select,
+  .ls-form-text {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 13px;
+    padding: 7px 9px;
+  }
+  .ls-form-range { width: 100%; accent-color: var(--tool-accent, var(--accent)); }
+  /* Run is deliberately NEUTRAL (near-white, dark text): blue is reserved
+     for tool identity, and this button lives inside whichever tool's
+     accent context is open. Transparent border so data-ran never shifts
+     layout. */
+  .ls-run-btn {
+    align-self: flex-start;
+    padding: 6px 16px;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    background: #ececec;
+    color: #141414;
+    font-family: var(--font);
+    font-size: 12.5px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 120ms ease, color 120ms ease, border-color 120ms ease, transform 80ms ease;
+  }
+  .ls-run-btn:hover { background: #ffffff; }
+  .ls-run-btn:active { transform: scale(0.98); }
+  /* confirmation = green check in a neutral pill — the same success
+     grammar as the approval flow's executed checks */
+  .ls-run-btn[data-ran],
+  .ls-run-btn[data-ran]:hover {
+    background: rgba(255,255,255,0.05);
+    border-color: var(--border);
+    color: var(--text-2);
+  }
+  .ls-run-check { color: var(--green); font-weight: 600; }
+
+  /* ── agent chrome (stage 3) ── */
+
   .ls-agent-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
   .ls-agent-title { font-family: var(--mono); font-size: 13px; color: var(--text); }
   .ls-agent-badge {
@@ -744,20 +1061,11 @@ const learnStyles = `
     border-color: rgba(34, 197, 94, 0.2);
     color: var(--green);
   }
-  .ls-agent-rows { display: flex; flex-direction: column; }
-  .ls-agent-row {
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
-    padding: 9px 0;
-    border-bottom: 1px solid rgba(255,255,255,0.04);
-  }
-  .ls-agent-row:last-child { border-bottom: none; }
-  .ls-agent-tool { font-family: var(--mono); font-size: 12.5px; font-weight: 600; color: var(--green); }
-  .ls-agent-desc { font-size: 12px; color: var(--text-2); }
-  .ls-agent-params { display: flex; flex-wrap: wrap; gap: 5px; }
+  .ls-agent-note { font-size: 11.5px; line-height: 1.5; color: var(--text-3); padding-top: 6px; }
+  .ls-agent-note code { font-family: var(--mono); font-size: 10.5px; color: var(--text-2); }
 
-  /* Stage 4: plan */
+  /* ── plan chrome (stage 4) ── */
+
   .ls-prompt {
     font-size: 15px;
     font-weight: 500;
@@ -771,8 +1079,6 @@ const learnStyles = `
   .ls-prompt-quote { color: var(--accent); }
 
   .ls-plan-thinking { font-size: 12px; color: var(--text-3); font-family: var(--mono); padding: 4px 2px; }
-  .ls-plan-calls { display: flex; flex-direction: column; gap: 7px; }
-  .ls-plan-call { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
   .ls-plan-index {
     font-size: 10px;
     font-weight: 600;
@@ -788,14 +1094,37 @@ const learnStyles = `
     align-self: center;
     font-variant-numeric: tabular-nums;
   }
-  .ls-plan-code { font-family: var(--mono); font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .ls-plan-note { font-size: 11px; color: var(--text-3); flex-shrink: 0; margin-left: auto; }
 
-  /* Stage 5: approval (visual language from globals.css [data-agentk-approval]) */
-  .ls-approval-card { padding: 6px 10px 12px; }
-  .ls-approval-card .ls-card-note { margin: 0 12px; }
+  /* ── approval chrome (stage 5) ──
+     button visuals come from globals.css [data-agentk-approval-*] */
+
+  .ls-approval-summary { font-size: 13.5px; font-weight: 500; line-height: 1.5; color: var(--text); }
+  /* the gate sentence fades (visibility only) once approval is given so it
+     never contradicts green executed checks below it */
+  .ls-approval-gate { transition: opacity 300ms var(--ease-soft); }
+  .ls-approval-gate[data-faded] { opacity: 0; }
+
+  .ls-approve-dock { display: flex; justify-content: flex-end; gap: 8px; padding-bottom: 10px; }
+  .ls-approve-dock [data-agentk-approval-approve]:active,
+  .ls-approve-dock [data-agentk-approval-reject]:active { transform: scale(0.98); }
+  /* One primary-action grammar for the whole walkthrough: Approve matches
+     the neutral Run pill (blue stays reserved for tool identity). */
+  .ls-approve-dock [data-agentk-approval-approve] {
+    background: #ececec;
+    color: #141414;
+    border-color: transparent;
+  }
+  .ls-approve-dock [data-agentk-approval-approve]:hover { background: #ffffff; }
+  .ls-approve-dock [data-agentk-approval-approve][data-running] {
+    animation: ls-approve-pulse 1.1s ease-in-out infinite;
+    cursor: default;
+  }
+  @keyframes ls-approve-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(236, 236, 236, 0.30); }
+    50%      { box-shadow: 0 0 0 6px rgba(236, 236, 236, 0); }
+  }
+
   .ls-call-done { color: var(--green); font-size: 13px; }
-  .ls-call-idx { color: var(--text-3); font-size: 11px; font-variant-numeric: tabular-nums; }
   .ls-call-spinner {
     display: inline-block;
     width: 12px;
@@ -807,11 +1136,10 @@ const learnStyles = `
   }
   @keyframes ls-spin { to { transform: rotate(360deg); } }
 
-  .ls-approval-status { font-size: 13px; color: var(--text-2); padding: 10px 12px 2px; line-height: 1.5; }
-  .ls-approval-done { display: flex; flex-direction: column; gap: 8px; padding-bottom: 4px; }
+  .ls-approval-status { font-size: 13px; color: var(--text-2); padding: 0 0 10px; line-height: 1.5; }
+  .ls-approval-reset { padding-bottom: 10px; }
   .ls-ghost-btn {
     align-self: flex-start;
-    margin: 0 12px;
     padding: 6px 14px;
     border-radius: 6px;
     border: 1px solid var(--border);
@@ -824,7 +1152,124 @@ const learnStyles = `
   }
   .ls-ghost-btn:hover { background: rgba(255,255,255,0.05); }
 
-  /* Stage 6: ship */
+  /* ── ?tune=1 dev panel — deliberately NOT part of the walkthrough ── */
+
+  /* Anchored bottom-RIGHT (the prose column lives on the left; the stage is
+     top-anchored, so bottom-right is dead space) with its own scroll. */
+  .ls-tune-pill {
+    position: fixed;
+    right: 12px;
+    bottom: 12px;
+    z-index: 100;
+    padding: 5px 12px;
+    border-radius: 9999px;
+    border: 1px dashed #5a5a5a;
+    background: rgba(8, 8, 8, 0.94);
+    color: #8f8f8f;
+    font-family: var(--mono, monospace);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    cursor: pointer;
+  }
+  .ls-tune-pill:hover { color: #ececec; border-color: #8f8f8f; }
+
+  .ls-tune {
+    position: fixed;
+    right: 12px;
+    bottom: 12px;
+    z-index: 100;
+    width: 212px;
+    max-height: 42vh;
+    overflow-y: auto;
+    background: rgba(8, 8, 8, 0.94);
+    border: 1px dashed #5a5a5a;
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-family: var(--mono);
+  }
+  .ls-tune-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 9.5px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #999;
+    margin-bottom: 8px;
+  }
+  .ls-tune-reset {
+    font: inherit;
+    color: var(--text-2);
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 2px 6px;
+    cursor: pointer;
+  }
+  .ls-tune-reset:hover { color: var(--text); }
+  /* Label gets its own full-width line (long names like
+     deviceVisualDuration never truncate); slider + value sit beneath. */
+  .ls-tune-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 42px;
+    align-items: center;
+    column-gap: 8px;
+    margin-bottom: 7px;
+  }
+  .ls-tune-label {
+    grid-column: 1 / -1;
+    font-size: 9.5px;
+    color: #9a9a9a;
+    white-space: nowrap;
+    margin-bottom: 2px;
+  }
+  /* dark neutral tracks + neutral thumbs — the panel is furniture, not UI */
+  .ls-tune-row input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 12px;
+    background: transparent;
+  }
+  .ls-tune-row input[type="range"]::-webkit-slider-runnable-track {
+    height: 4px;
+    border-radius: 2px;
+    background: #2a2a2a;
+  }
+  .ls-tune-row input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 11px;
+    height: 11px;
+    border-radius: 50%;
+    background: #c9c9c9;
+    margin-top: -3.5px;
+  }
+  .ls-tune-row input[type="range"]::-moz-range-track {
+    height: 4px;
+    border-radius: 2px;
+    background: #2a2a2a;
+  }
+  .ls-tune-row input[type="range"]::-moz-range-thumb {
+    width: 11px;
+    height: 11px;
+    border: none;
+    border-radius: 50%;
+    background: #c9c9c9;
+  }
+  .ls-tune-val { font-size: 9.5px; color: var(--text-2); text-align: right; font-variant-numeric: tabular-nums; }
+  .ls-tune-note { font-size: 9px; color: #777; margin-top: 6px; line-height: 1.5; }
+
+  /* Stage 6: ship — floating chrome (no outer bordered panel), same as
+     every other stage; the condensed devices stay visible above it */
+  .ls-ship {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 2px;
+  }
+
   .ls-ship-status {
     list-style: none;
     display: flex;
@@ -882,48 +1327,106 @@ const learnStyles = `
 
   @media (max-width: 900px) {
     .learn-layout {
-      display: block;
+      display: flex;
+      flex-direction: column;
       padding: 0 16px 80px;
     }
+
+    /* The intro leads the page: .learn-steps dissolves (display: contents)
+       so the intro and step sections become flex items of .learn-layout,
+       and order -1 lifts the intro above the sticky stage — the first
+       screenful opens with "What is WebMCP?", not the machinery. */
+    .learn-steps { display: contents; }
+    .learn-intro { order: -1; padding: 24px 0 16px; }
 
     .learn-stage-wrap {
       position: sticky;
       top: 0;
       z-index: 40;
-      height: 45vh;
+      /* auto-size to the stage's content (capped) instead of a fixed
+         height: shorter stages take less of the viewport, taller stages
+         get enough room that all three tool rows stay visible */
+      height: auto;
+      max-height: 60vh;
       padding: 10px 0;
       background: var(--bg);
       box-shadow: 0 12px 24px -18px rgba(0,0,0,0.9);
       align-items: stretch;
     }
+    /* prose dissolves over a real distance under the sticky stage instead
+       of being sliced mid-line by its hard edge */
+    .learn-stage-wrap::after {
+      content: '';
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 100%;
+      height: 36px;
+      background: linear-gradient(var(--bg), transparent);
+      pointer-events: none;
+    }
 
-    .ls-panel { max-height: 100%; }
+    /* wrap height is auto, so the cap must live on the panel itself
+       (60vh minus the wrap's 10px vertical paddings) */
+    .ls-panel { max-height: calc(60vh - 20px); }
     .ls-zone { flex: 1; }
 
-    .learn-intro { padding: 28px 0 8px; }
-    .learn-intro h1 { font-size: 27px; }
+    .learn-intro h1 { font-size: 32px; }
 
     .learn-step { min-height: 62vh; }
     .learn-step-card { max-width: none; padding: 18px; }
+    .learn-step-card h2 { font-size: 22px; }
 
     .ls-devices { gap: 8px; }
     .ls-device { padding: 10px; }
     .ls-device-reading { font-size: 15px; }
-    .ls-plan-note { display: none; }
+    .ls-row-note { display: none; }
+    .ls-tune { width: 200px; max-height: 36vh; }
   }
 
-  /* ─── Reduced motion: no ambient animation, instant everything ─── */
+  /* ≤480px: the schema param chips retire so all three tool rows stay
+     visible on a phone-height stage. The plan's call params still render —
+     they are the payload of stages 4-5. */
+  @media (max-width: 480px) {
+    /* keep the stage under half the viewport mid-walkthrough */
+    .ls-row { padding-top: 8px; padding-bottom: 8px; }
+    .ls-panel { gap: 10px; }
+    .ls-device { padding: 10px; gap: 4px; }
+    .ls-device-reading { font-size: 15px; }
+    .ls-zone-caption, .ls-note { margin-top: 4px; }
+
+    .ls-row-schema { display: none; }
+    .ls-card { padding: 12px; }
+    .ls-soup { font-size: 11px; }
+    .ls-prompt { font-size: 13.5px; padding: 10px 12px; }
+  }
+
+  /* ─── Reduced motion: no ambient animation, instant everything.
+     (Framer springs collapse to duration 0 via useReducedMotion, and
+     --chrome-ms is set to 0ms inline — these rules catch the rest.) ─── */
 
   @media (prefers-reduced-motion: reduce) {
     .ls-eq-bar { animation: none; height: 10px; }
     .ls-call-spinner { animation: none; }
+    .ls-approve-dock [data-agentk-approval-approve][data-running] { animation: none; }
     .learn-step-card,
     .ls-device,
-    .ls-bar-fill,
     .ls-toggle-knob,
     .ls-device-toggle,
-    .ls-device-icon {
+    .ls-device-icon,
+    .ls-collapse,
+    .ls-row-clip,
+    .ls-row,
+    .ls-row-status,
+    .ls-row-chevron,
+    .ls-run-btn,
+    .ls-approval-gate,
+    .ls-ghost-btn {
       transition: none;
     }
+    .ls-device:hover { transform: none; }
+    .ls-run-btn:active { transform: none; }
+    .ls-approve-dock [data-agentk-approval-approve]:active,
+    .ls-approve-dock [data-agentk-approval-reject]:active { transform: none; }
   }
 `
