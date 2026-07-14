@@ -267,6 +267,19 @@ export default function ShowcasePage() {
   // Arrow key navigation for theme tabs
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
+      // Never hijack arrows from editable controls: caret movement and
+      // option selection win. Exception: an EMPTY text input (the
+      // auto-focused palette search) has no caret to move, so the theme
+      // shortcut still works from the default resting state.
+      const target = e.target as HTMLElement | null
+      if (target) {
+        if (target.isContentEditable || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT') return
+        if (target.tagName === 'INPUT') {
+          const input = target as HTMLInputElement
+          const emptyTextInput = (input.type === 'text' || input.type === 'search') && input.value === ''
+          if (!emptyTextInput) return
+        }
+      }
       if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
         const idx = THEMES.findIndex((t) => t.id === activeTheme)
         if (e.key === 'ArrowLeft' && idx > 0) {
@@ -505,6 +518,18 @@ export default function ShowcasePage() {
                 )
               })()}
             </AnimatePresence>
+          </motion.div>
+
+          {/* ─── Walkthrough link ─── */}
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={mounted ? { opacity: 1, y: 0 } : {}}
+            transition={{ duration: 0.5, delay: 0.5, ease }}
+          >
+            <a href="/learn" className="tab-demo-link">
+              New to WebMCP? Take the 2-minute walkthrough
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            </a>
           </motion.div>
 
           {/* ─── Code snippet ─── */}

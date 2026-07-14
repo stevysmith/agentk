@@ -964,6 +964,20 @@ body { font-family: var(--font); -webkit-font-smoothing: antialiased; min-height
   transform: scale(1.15);
 }
 
+/* Keyboard focus: the base rule strips the outline, so give the slider a
+   visible ring — on the track (all browsers) and on the WebKit thumb. */
+[data-agentk-field-range] input[type="range"]:focus-visible {
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, .25);
+}
+
+[data-agentk-field-range] input[type="range"]:focus-visible::-webkit-slider-thumb {
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, .4);
+}
+
+[data-agentk-field-range] input[type="range"]:focus-visible::-moz-range-thumb {
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, .4);
+}
+
 [data-agentk-field-range-value] {
   font-size: 14px;
   font-weight: 600;
