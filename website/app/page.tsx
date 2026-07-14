@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import { THEME_ICONS, GitHubIcon, CheckIcon, CopyIcon, SunIcon, MoonIcon } from '../components/icons'
 import RaycastTheme from '../components/cmdk/raycast'
 import LinearTheme from '../components/cmdk/linear'
@@ -239,6 +239,10 @@ const THEME_CODE: Record<ThemeId, { code: string; highlights: Record<string, 'kw
   },
 }
 
+// Module-level guard so the DevTools easter egg logs exactly once per load,
+// even through React StrictMode's double-invoked effects (mirrors /learn).
+let easterEggLogged = false
+
 // ─────────────────────────────────────────────────────────
 // Main page
 // ─────────────────────────────────────────────────────────
@@ -252,6 +256,28 @@ export default function ShowcasePage() {
   const [showArrowHint, setShowArrowHint] = useState(false)
   const hasClickedTab = useRef(false)
   const themeTabsRef = useRef<HTMLDivElement>(null)
+
+  // ─── DevTools easter egg (client-only, once) ───
+  // Honest and dev-facing, matching /learn's: detects whether a WebMCP surface
+  // exists in THIS browser and phrases the claim accordingly, and links the repo.
+  useEffect(() => {
+    if (easterEggLogged) return
+    easterEggLogged = true
+    const activeSurface =
+      'modelContext' in document
+        ? 'document.modelContext'
+        : 'modelContext' in navigator
+          ? 'navigator.modelContext'
+          : null
+    const reality = activeSurface
+      ? `This browser exposes WebMCP — agentk can register your tools on ${activeSurface} for agents to call.`
+      : "WebMCP is a Chrome origin trial, so this browser doesn't expose it. agentk degrades to a plain command palette — nothing breaks."
+    console.log(
+      `%cagentk%c · the command palette for the agentic web.\n${reality}\nSource: https://github.com/stevysmith/agentk`,
+      'font-weight:700;color:#f59e0b',
+      'color:inherit',
+    )
+  }, [])
 
   useEffect(() => {
     setMounted(true)
@@ -328,10 +354,27 @@ export default function ShowcasePage() {
 
   const ActiveThemeComponent = THEME_COMPONENTS[activeTheme]
 
-  const ease = [0.21, 0.47, 0.32, 0.98] as const
+  // /learn's motion character: one calm ease curve shared across the two pages.
+  const ease = [0.32, 0, 0.24, 1] as const
+  const reduced = !!useReducedMotion()
+  // Reduced motion: keep the entrance choreography's timing structure but
+  // collapse each transition to 0s so nothing translates or fades in.
+  const rt = (duration: number, delay: number) =>
+    reduced ? { duration: 0, delay: 0, ease } : { duration, delay, ease }
 
   return (
     <>
+      {/* Editorial serif for the hero display headline, loaded the SAME
+          page-scoped way as /learn (Google Fonts, opsz axis, display=swap).
+          React hoists+dedupes these into <head>; the preconnects shave the
+          setup off the CSS + woff2 fetch, and the metric-tuned 'Newsreader
+          Fallback' face in styles.ts keeps the swap from shifting the headline. */}
+      <link rel="preconnect" href="https://fonts.googleapis.com" />
+      <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+      <link
+        rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,500..600&display=swap"
+      />
       <style>{showcaseStyles}</style>
 
       <div className={`showcase-page${dark ? ' dark' : ''}`}>
@@ -362,18 +405,24 @@ export default function ShowcasePage() {
           {/* ─── Header ─── */}
           <motion.header
             className="header"
-            initial={{ opacity: 0, y: 16 }}
+            initial={reduced ? false : { opacity: 0, y: 16 }}
             animate={mounted ? { opacity: 1, y: 0 } : {}}
-            transition={{ duration: 0.6, delay: 0.1, ease }}
+            transition={rt(0.6, 0.1)}
           >
             <div className="header-left">
               <div className="title-row">
                 <h1 className="page-title">agentk</h1>
                 <span className="version-badge">v0.4.1</span>
               </div>
-              <p className="tagline">A command palette that understands natural language.</p>
-              <p className="tagline-sub">Browse tools directly or let the built-in agent orchestrate them &mdash; instant by default, with an approval screen wherever you opt in.</p>
-              <p className="tagline-traits">Fast, composable, unstyled.</p>
+              <p className="tagline">The command palette for the agentic web.</p>
+              <p className="tagline-sub">Define your app&rsquo;s capabilities once as JSON&nbsp;Schema tools. The same catalog gives people a command palette and AI agents a WebMCP surface &mdash; one definition, two consumers.</p>
+              <p className="hero-honesty">
+                WebMCP is a Chrome origin trial, not a shipped standard &mdash; so I built agentk to feature-detect and fall back to a plain palette wherever it&rsquo;s missing. Nothing breaks.
+              </p>
+              <a href="/learn" className="hero-learn-link">
+                Learn WebMCP interactively &mdash; a 2-minute walkthrough
+                <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              </a>
             </div>
             <div className="header-right">
               <button className="install-btn" onClick={handleCopy}>
@@ -407,9 +456,9 @@ export default function ShowcasePage() {
           <motion.div
             className="demo-area"
             layout
-            initial={{ opacity: 0, y: 24, scale: 0.98 }}
+            initial={reduced ? false : { opacity: 0, y: 24, scale: 0.98 }}
             animate={mounted ? { opacity: 1, y: 0, scale: 1 } : {}}
-            transition={{ duration: 0.7, delay: 0.25, ease, layout: { duration: 0.3, ease: [0.25, 0.1, 0.25, 1] } }}
+            transition={{ ...rt(0.7, 0.25), layout: { duration: reduced ? 0 : 0.3, ease } }}
           >
             <AnimatePresence mode="wait">
               <motion.div
@@ -441,9 +490,9 @@ export default function ShowcasePage() {
           <motion.div
             className="theme-switcher"
             ref={themeTabsRef}
-            initial={{ opacity: 0, y: 12 }}
+            initial={reduced ? false : { opacity: 0, y: 12 }}
             animate={mounted ? { opacity: 1, y: 0 } : {}}
-            transition={{ duration: 0.5, delay: 0.4, ease }}
+            transition={rt(0.5, 0.4)}
             role="tablist"
           >
             <button
@@ -495,9 +544,9 @@ export default function ShowcasePage() {
           {/* ─── Full-demo CTA ─── */}
           <motion.div
             className="demo-cta-row"
-            initial={{ opacity: 0, y: 8 }}
+            initial={reduced ? false : { opacity: 0, y: 8 }}
             animate={mounted ? { opacity: 1, y: 0 } : {}}
-            transition={{ duration: 0.5, delay: 0.45, ease }}
+            transition={rt(0.5, 0.45)}
           >
             <AnimatePresence mode="wait">
               {(() => {
@@ -520,24 +569,12 @@ export default function ShowcasePage() {
             </AnimatePresence>
           </motion.div>
 
-          {/* ─── Walkthrough link ─── */}
-          <motion.div
-            initial={{ opacity: 0, y: 8 }}
-            animate={mounted ? { opacity: 1, y: 0 } : {}}
-            transition={{ duration: 0.5, delay: 0.5, ease }}
-          >
-            <a href="/learn" className="tab-demo-link">
-              New to WebMCP? Take the 2-minute walkthrough
-              <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-            </a>
-          </motion.div>
-
           {/* ─── Code snippet ─── */}
           <motion.div
             className="code-area"
-            initial={{ opacity: 0, y: 12 }}
+            initial={reduced ? false : { opacity: 0, y: 12 }}
             animate={mounted ? { opacity: 1, y: 0 } : {}}
-            transition={{ duration: 0.5, delay: 0.5, ease }}
+            transition={rt(0.5, 0.5)}
           >
             <AnimatePresence mode="wait">
               <motion.pre
@@ -598,9 +635,9 @@ export default function ShowcasePage() {
           {/* ─── Footer ─── */}
           <motion.footer
             className="page-footer"
-            initial={{ opacity: 0 }}
+            initial={reduced ? false : { opacity: 0 }}
             animate={mounted ? { opacity: 1 } : {}}
-            transition={{ duration: 0.5, delay: 0.6, ease }}
+            transition={rt(0.5, 0.6)}
           >
             Built by{' '}
             <a href="https://github.com/stevysmith" target="_blank" rel="noopener noreferrer">Steve Smith</a>

@@ -8,12 +8,30 @@ export const showcaseStyles = `
     src: url(https://rsms.me/inter/font-files/InterVariable.woff2) format('woff2');
   }
 
+  /* ─── Newsreader display fallback (metric-tuned) ───
+     The same Georgia size-adjusted face /learn declares, so the display=swap
+     Newsreader stylesheet (loaded page-scoped in app/page.tsx) lands without
+     shifting the serif headline. Weight descriptor covers the 500-600 range
+     the page requests and stops synthetic bold. */
+  @font-face {
+    font-family: 'Newsreader Fallback';
+    src: local('Georgia');
+    font-weight: 500 600;
+    size-adjust: 100.94%;
+    ascent-override: 72.81%;
+    descent-override: 26.25%;
+    line-gap-override: 0%;
+  }
+
   /* ─── Reset & Variables ─── */
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+  /* Restrained, brand-consistent selection. cmdk's hotpink was loud next to
+     /learn; this is the site's one blue identity at low alpha, so selected
+     text stays legible and on-brand in both light and dark. */
   ::selection {
-    background: hotpink;
-    color: white;
+    background: color-mix(in srgb, var(--accent) 22%, transparent);
+    color: var(--text);
   }
 
   :root {
@@ -42,9 +60,26 @@ export const showcaseStyles = `
     --text-2: var(--gray11);
     --text-3: var(--gray9);
     --border: var(--gray6);
-    --accent: hsl(206, 100%, 50%);
+    /* One blue identity, shared with /learn (--accent #3b82f6 / --accent-2
+       #2563eb in app/globals.css). Was cmdk's azure hsl(206,100%,50%);
+       unified so the interactive accent (selected-item icon, form submit,
+       input caret, select:focus, hero-learn-link hover) doesn't shift hue
+       when you click through to /learn. */
+    --accent: #3b82f6;
+    --accent-2: #2563eb;
     --font: 'Inter', system-ui, -apple-system, sans-serif;
     --mono: 'SF Mono', ui-monospace, 'Fira Code', monospace;
+    /* Editorial serif for display type only (the hero headline). Loaded
+       page-scoped exactly like /learn; 'Newsreader Fallback' is the metric
+       -tuned Georgia face declared above. */
+    --serif: 'Newsreader', 'Newsreader Fallback', Georgia, 'Times New Roman', serif;
+    /* /learn's per-tool identity hues — reused for tool/identifier accents so
+       the two pages share one color language. */
+    --tool-orange: #f59e0b;
+    --tool-blue: #3b82f6;
+    --tool-purple: #a78bfa;
+    /* /learn's motion character: one calm ease for entrances + hovers. */
+    --ease-soft: cubic-bezier(0.32, 0, 0.24, 1);
   }
 
   .dark {
@@ -114,14 +149,18 @@ export const showcaseStyles = `
 
   .bg-mesh::after {
     content: '';
+    /* Ambient mesh kept within the brand hue system (blue / purple / amber —
+       the same tool-hue family as the accents). The old cmdk rainbow's loud
+       red/hotpink radials were re-hued into blue/purple so the ambiance no
+       longer sits outside the palette. */
     background-image:
       radial-gradient(at 27% 37%, hsla(215, 98%, 61%, 1) 0px, transparent 50%),
       radial-gradient(at 97% 21%, hsla(256, 98%, 72%, 1) 0px, transparent 50%),
-      radial-gradient(at 52% 99%, hsla(354, 98%, 61%, 1) 0px, transparent 50%),
+      radial-gradient(at 52% 99%, hsla(256, 78%, 68%, 1) 0px, transparent 50%),
       radial-gradient(at 10% 29%, hsla(133, 96%, 67%, 1) 0px, transparent 50%),
       radial-gradient(at 97% 96%, hsla(38, 60%, 74%, 1) 0px, transparent 50%),
       radial-gradient(at 33% 50%, hsla(222, 67%, 73%, 1) 0px, transparent 50%),
-      radial-gradient(at 79% 53%, hsla(343, 68%, 79%, 1) 0px, transparent 50%);
+      radial-gradient(at 79% 53%, hsla(212, 70%, 74%, 1) 0px, transparent 50%);
     position: fixed;
     width: 120%;
     height: 120%;
@@ -143,6 +182,16 @@ export const showcaseStyles = `
   }
 
   .dark .bg-mesh::after { opacity: 0.08; }
+
+  /* Respect reduced motion: still the ambient mesh drift and any hover/link
+     easing. Framer entrance transitions are collapsed to 0 in app/page.tsx. */
+  @media (prefers-reduced-motion: reduce) {
+    .bg-mesh::after { animation: none; }
+    .hero-learn-link,
+    .hero-learn-link svg,
+    .demo-cta svg,
+    .tab-demo-link svg { transition: none; }
+  }
 
   /* ─── Dark mode toggle ─── */
   .theme-toggle {
@@ -210,29 +259,81 @@ export const showcaseStyles = `
     color: var(--text);
   }
 
+  /* Serif display headline — the landing's equivalent of /learn's h1
+     (Newsreader, optical sizing, balanced wrap). This is the one big
+     editorial moment; the Inter wordmark above it stays the logotype. */
   .tagline {
-    font-size: 17px;
+    font-family: var(--serif);
+    font-optical-sizing: auto;
+    font-size: 33px;
+    font-weight: 560;
+    letter-spacing: -0.015em;
+    line-height: 1.12;
+    text-wrap: balance;
     color: var(--text);
-    font-weight: 400;
-    margin-top: 4px;
-    line-height: 1.4;
+    margin-top: 14px;
+    max-width: 15ch;
   }
 
   .tagline-sub {
-    font-size: 15px;
+    font-size: 15.5px;
     color: var(--text-2);
     font-weight: 400;
-    margin-top: 2px;
-    line-height: 1.4;
+    margin-top: 12px;
+    line-height: 1.55;
+    max-width: 46ch;
   }
 
-  .tagline-traits {
+  /* Honesty acknowledgment — hairline pill + leading marker dot, the same
+     "honesty reads as designed" treatment as /learn's .ls-honesty. */
+  .hero-honesty {
+    display: flex;
+    gap: 9px;
+    align-items: flex-start;
+    margin-top: 16px;
+    max-width: 48ch;
+    padding: 9px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--grayA3);
     font-size: 13px;
-    color: var(--text-3);
-    font-weight: 400;
-    margin-top: 6px;
-    letter-spacing: 0.02em;
+    line-height: 1.5;
+    color: var(--text-2);
   }
+
+  .hero-honesty::before {
+    content: '';
+    flex-shrink: 0;
+    width: 6px;
+    height: 6px;
+    margin-top: 6px;
+    border-radius: 50%;
+    background: var(--tool-blue);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--tool-blue) 14%, transparent);
+  }
+
+  .hero-honesty code {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text);
+  }
+
+  /* First-class path to the interactive walkthrough, from the hero. */
+  .hero-learn-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 18px;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text);
+    text-decoration: none;
+    width: fit-content;
+    transition: gap 150ms var(--ease-soft), color 150ms var(--ease-soft);
+  }
+  .hero-learn-link:hover { gap: 9px; color: var(--accent); }
+  .hero-learn-link svg { transition: transform 150ms var(--ease-soft); }
+  .hero-learn-link:hover svg { transform: translateX(2px); }
 
   .header-right {
     display: flex;
@@ -501,7 +602,7 @@ export const showcaseStyles = `
   }
 
   .palette-container [data-agentk-form-submit]:hover {
-    background: #005ec4;
+    background: var(--accent-2);
   }
 
   .palette-container [data-agentk-result] { padding: 16px 20px; }
@@ -1681,7 +1782,10 @@ export const showcaseStyles = `
     overflow-x: auto;
     white-space: pre-wrap;
     tab-size: 2;
-    box-shadow: rgb(0 0 0 / 10%) 0px 5px 30px -5px;
+    /* Hairline card, not a floating panel — matches /learn's .ls-card
+       surface treatment. (The palette itself keeps its modal shadow; that
+       floating-palette look is the showcase's point.) */
+    box-shadow: none;
     position: relative;
     margin: 0;
   }
@@ -1807,6 +1911,11 @@ export const showcaseStyles = `
 
     .page-title {
       font-size: 32px;
+    }
+
+    .tagline {
+      font-size: 27px;
+      max-width: none;
     }
 
     .theme-switcher {
