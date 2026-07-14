@@ -509,7 +509,14 @@ const learnStyles = `
     gap: 14px;
   }
 
-  .ls-zone { min-height: 0; overflow-y: auto; overscroll-behavior: contain; display: grid; }
+  .ls-zone {
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    position: relative; /* anchor for inactive (absolute) zones */
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
   .ls-zone::-webkit-scrollbar { width: 6px; }
   .ls-zone::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
   .ls-zone-inner { width: 100%; }

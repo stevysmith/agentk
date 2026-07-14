@@ -145,10 +145,23 @@ export function LearnStage(props: LearnStageProps) {
               initial={false}
               animate={{
                 opacity: active ? 1 : 0,
-                y: reducedMotion || active ? 0 : ZONE_OFFSET_Y,
+                // Inactive zones rest 12px ABOVE (negative): translated
+                // overflow past the bottom edge inflates scrollHeight and
+                // resurrects the phantom scrollbar; top overflow never does.
+                y: reducedMotion || active ? 0 : -ZONE_OFFSET_Y,
               }}
               transition={t(SPRING.zone)}
-              style={{ gridArea: '1 / 1', pointerEvents: active ? 'auto' : 'none' }}
+              style={{
+                // Only the active zone participates in layout. Inactive zones
+                // are absolutely positioned AND bounded to the container with
+                // overflow hidden — absolute children that extend past the box
+                // still count toward scrollHeight, which put a phantom
+                // scrollbar on the stage.
+                position: active ? 'relative' : 'absolute',
+                inset: active ? undefined : 0,
+                overflow: active ? undefined : 'hidden',
+                pointerEvents: active ? 'auto' : 'none',
+              }}
               aria-hidden={active ? undefined : true}
             >
               {node}
