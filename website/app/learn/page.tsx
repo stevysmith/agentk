@@ -1156,6 +1156,47 @@ const learnStyles = `
 
   /* Anchored bottom-RIGHT (the prose column lives on the left; the stage is
      top-anchored, so bottom-right is dead space) with its own scroll. */
+  .ls-tune-section {
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #8f8f8f;
+    margin: 10px 0 6px;
+  }
+  .ls-tune-presets { display: flex; gap: 6px; }
+  .ls-tune-preset {
+    flex: 1;
+    padding: 5px 0;
+    border-radius: 6px;
+    border: 1px solid #3a3a3a;
+    background: transparent;
+    color: #c9c9c9;
+    font-family: var(--mono, monospace);
+    font-size: 11px;
+    cursor: pointer;
+  }
+  .ls-tune-preset:hover { border-color: #8f8f8f; }
+  .ls-tune-preset[data-active] { background: #ececec; color: #141414; border-color: #ececec; }
+  .ls-tune-replay {
+    width: 100%;
+    padding: 6px 0;
+    border-radius: 6px;
+    border: 1px solid #3a3a3a;
+    background: transparent;
+    color: #c9c9c9;
+    font-family: var(--mono, monospace);
+    font-size: 11px;
+    cursor: pointer;
+  }
+  .ls-tune-replay:hover { border-color: #8f8f8f; color: #ececec; }
+  .ls-tune-more summary {
+    font-size: 11px;
+    color: #8f8f8f;
+    cursor: pointer;
+    margin: 8px 0 4px;
+  }
+  .ls-tune-more summary:hover { color: #ececec; }
+
   .ls-tune-pill {
     position: fixed;
     right: 12px;

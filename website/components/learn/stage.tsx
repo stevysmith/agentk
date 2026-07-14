@@ -1182,10 +1182,48 @@ const TUNE_META: { key: keyof Tune; min: number; max: number; step: number }[] =
   { key: 'deviceFlashMs', min: 0, max: 1500, step: 25 },
 ]
 
+// Three complete flavors to compare by feel BEFORE touching sliders
+// (Interface Craft's "conceptual range": judge disparate wholes, then
+// refine the winner). calm = the shipped defaults.
+const TUNE_PRESETS: Record<string, Tune> = {
+  calm: { ...TUNE },
+  brisk: {
+    ...TUNE,
+    zoneFadeMs: 260, zoneRise: 10, zoneScale: 0.985,
+    rowVisualDuration: 0.42, rowBounce: 0.06, rowStaggerS: 0.04, rowSkinMs: 300,
+    chromeMs: 200, prefixMs: 220,
+    planThinkingMs: 250, planCallsMs: 650, planCallStaggerS: 0.06,
+    deviceVisualDuration: 0.38, deviceBounce: 0.1,
+    approvalStepMs: 420, deviceFlashMs: 450,
+  },
+  springy: {
+    ...TUNE,
+    zoneFadeMs: 440, zoneRise: 14, zoneScale: 0.97,
+    rowVisualDuration: 0.75, rowBounce: 0.28, rowStaggerS: 0.08, rowSkinMs: 500,
+    chromeMs: 320, prefixMs: 360,
+    planThinkingMs: 420, planCallsMs: 1050, planCallStaggerS: 0.12,
+    deviceVisualDuration: 0.65, deviceBounce: 0.32,
+    approvalStepMs: 650, deviceFlashMs: 700,
+  },
+}
+
+// The four values that dominate the feel — surfaced first in the panel.
+const FEEL_KEYS: (keyof Tune)[] = ['rowVisualDuration', 'rowBounce', 'zoneFadeMs', 'rowSkinMs']
+
+/** One click = one replay of the signature stage 1 → 2 morph: scroll to the
+ *  "declare" step, then to the "palette" step once the stage has settled. */
+function replayMorph() {
+  const secs = document.querySelectorAll<HTMLElement>('[data-step-index]')
+  if (secs.length < 3) return
+  secs[1].scrollIntoView({ block: 'center', behavior: 'instant' as ScrollBehavior })
+  setTimeout(() => secs[2].scrollIntoView({ block: 'center', behavior: 'smooth' }), 900)
+}
+
 function TunePanel({ tune, onChange }: { tune: Tune; onChange: (t: Tune) => void }) {
   // Collapsed by default so the panel can never sit over the walkthrough
   // until someone deliberately opens it.
   const [open, setOpen] = useState(false)
+  const [copied, setCopied] = useState(false)
   if (!open) {
     return (
       <button type="button" className="ls-tune-pill" onClick={() => setOpen(true)}>
@@ -1193,6 +1231,23 @@ function TunePanel({ tune, onChange }: { tune: Tune; onChange: (t: Tune) => void
       </button>
     )
   }
+  const activePreset = Object.keys(TUNE_PRESETS).find(
+    (name) => JSON.stringify(TUNE_PRESETS[name]) === JSON.stringify(tune),
+  )
+  const sliderRow = ({ key, min, max, step }: (typeof TUNE_META)[number]) => (
+    <label className="ls-tune-row" key={key}>
+      <span className="ls-tune-label">{key}</span>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={tune[key]}
+        onChange={(e) => onChange({ ...tune, [key]: Number(e.target.value) })}
+      />
+      <code className="ls-tune-val">{tune[key]}</code>
+    </label>
+  )
   return (
     <aside className="ls-tune" aria-label="Motion tuning panel (dev only)">
       <div className="ls-tune-head">
@@ -1204,20 +1259,47 @@ function TunePanel({ tune, onChange }: { tune: Tune; onChange: (t: Tune) => void
           close
         </button>
       </div>
-      {TUNE_META.map(({ key, min, max, step }) => (
-        <label className="ls-tune-row" key={key}>
-          <span className="ls-tune-label">{key}</span>
-          <input
-            type="range"
-            min={min}
-            max={max}
-            step={step}
-            value={tune[key]}
-            onChange={(e) => onChange({ ...tune, [key]: Number(e.target.value) })}
-          />
-          <code className="ls-tune-val">{tune[key]}</code>
-        </label>
-      ))}
+
+      <div className="ls-tune-section">1 · pick a flavor</div>
+      <div className="ls-tune-presets">
+        {Object.keys(TUNE_PRESETS).map((name) => (
+          <button
+            key={name}
+            type="button"
+            className="ls-tune-preset"
+            data-active={activePreset === name || undefined}
+            onClick={() => onChange({ ...TUNE_PRESETS[name] })}
+          >
+            {name}
+          </button>
+        ))}
+      </div>
+
+      <div className="ls-tune-section">2 · replay &amp; judge</div>
+      <button type="button" className="ls-tune-replay" onClick={replayMorph}>
+        ▶ replay the 1 → 2 morph
+      </button>
+
+      <div className="ls-tune-section">3 · refine the feel</div>
+      {TUNE_META.filter((m) => FEEL_KEYS.includes(m.key)).map(sliderRow)}
+
+      <details className="ls-tune-more">
+        <summary>everything else</summary>
+        {TUNE_META.filter((m) => !FEEL_KEYS.includes(m.key)).map(sliderRow)}
+      </details>
+
+      <button
+        type="button"
+        className="ls-tune-replay"
+        onClick={() => {
+          navigator.clipboard?.writeText(JSON.stringify(tune, null, 2)).then(() => {
+            setCopied(true)
+            setTimeout(() => setCopied(false), 1600)
+          })
+        }}
+      >
+        {copied ? '✓ copied — paste it to Claude' : 'copy these values'}
+      </button>
       <p className="ls-tune-note">approvalStepMs / deviceFlashMs are read once by the page — reload to apply.</p>
     </aside>
   )
