@@ -734,8 +734,17 @@ export default function ShowcasePage() {
                     )
                   })()}
                 </AnimatePresence>
-                <a href="/docs" className="docs-link">
-                  Read the docs
+                {/* The real documentation is the repo README — /docs on this
+                    site is the API-Docs *demo* (reachable via the Raycast
+                    tab's own labeled pill), so linking it as "docs" would
+                    mislead. */}
+                <a
+                  href="https://github.com/stevysmith/agentk#readme"
+                  className="docs-link"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Read the README
                   <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
                 </a>
               </motion.div>
