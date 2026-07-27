@@ -2,8 +2,38 @@ import type { Metadata } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'agentk — human-in-the-loop for the agentic web',
-  description: 'A cmdk fork that gives humans transparency and control over WebMCP tools. Browse what the agent can do, trigger or override actions, see results.',
+  metadataBase: new URL('https://agentk.stacktr.ee'),
+  title: 'agentk — the command palette for the agentic web',
+  description:
+    'A React component: define your capabilities once as JSON Schema tools. People get a command palette; AI agents get a WebMCP endpoint — one definition, two ways in.',
+  openGraph: {
+    title: 'agentk — the command palette for the agentic web',
+    description:
+      'Define your capabilities once as JSON Schema tools. People get a command palette; AI agents get a WebMCP endpoint.',
+    url: 'https://agentk.stacktr.ee',
+    siteName: 'agentk',
+    locale: 'en_US',
+    type: 'website',
+    images: [
+      {
+        url: '/og-image.png',
+        width: 1200,
+        height: 630,
+        alt: 'agentk — the command palette for the agentic web. A palette UI with per-tool colors and the line: one catalog, humans get the palette, agents get WebMCP.',
+        type: 'image/png',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'agentk — the command palette for the agentic web',
+    description:
+      'Define your capabilities once as JSON Schema tools. People get a command palette; AI agents get a WebMCP endpoint.',
+    images: ['/og-image.png'],
+  },
+  other: {
+    'theme-color': '#0a0a0a',
+  },
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
