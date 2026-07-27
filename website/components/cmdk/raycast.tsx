@@ -268,7 +268,7 @@ function SubCommandMenu({ selectedValue, onClose }: { selectedValue: string; onC
   )
 }
 
-export default function RaycastTheme() {
+export default function RaycastTheme({ placeholder }: { placeholder?: string }) {
   const allTools = [...raycastTools, ...raycastCommandTools]
   const [subOpen, setSubOpen] = useState(false)
   const [selectedValue, setSelectedValue] = useState('linear')
@@ -321,7 +321,10 @@ export default function RaycastTheme() {
           }
         }}
       >
-        <Command.Input autoFocus placeholder="Search for apps and commands..." />
+        {/* No autoFocus: the landing's guarded focus effect owns all focusing,
+            so React's commit-phase autofocus never fires the focusin that
+            would cancel the ghost-typed placeholder. */}
+        <Command.Input placeholder={placeholder ?? 'Search for apps and commands...'} />
         <hr className="raycast-loader" />
         <Command.List>
           <Command.Empty>No results found.</Command.Empty>

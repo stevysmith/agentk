@@ -342,19 +342,20 @@ export const showcaseStyles = `
     margin-top: 12px;
   }
 
-  /* Honesty acknowledgment — LAST in the stack, as designed fine print.
-     Amber small-caps eyebrow + amber marker, the "honesty reads as designed"
-     treatment from /learn's .ls-honesty. */
+  /* Honesty acknowledgment — LAST in the stack, as true fine print: no
+     filled box, just a 1px hairline left rule + small-caps amber eyebrow,
+     body one size down in the secondary color. */
   .hero-honesty {
     display: flex;
     flex-direction: column;
     gap: 6px;
     margin-top: 22px;
     max-width: 44ch;
-    padding: 11px 13px;
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    background: var(--grayA3);
+    padding: 2px 0 2px 14px;
+    border: none;
+    border-left: 1px solid var(--border);
+    border-radius: 0;
+    background: none;
   }
 
   .hero-honesty-eyebrow {
@@ -377,16 +378,14 @@ export const showcaseStyles = `
     box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent);
   }
 
-  /* Honesty body sits on the grayA3-darkened warm patch: gray11 there is a
-     4.24:1 near-miss of AA at 13px in LIGHT, so the note carries full --text
-     (gray12) for a clean pass. Dark's gray11 is already a healthy 6.82:1 and
-     keeps the intended fine-print tone. */
+  /* Fine-print body: one size down, secondary color. On the plain page
+     ground (no filled patch anymore) gray11 clears AA at 12px in both
+     light (#6f6f6f on #faf7f2 ≈ 4.9:1) and dark (6.8:1). */
   .hero-honesty p {
-    font-size: 13px;
+    font-size: 12px;
     line-height: 1.55;
-    color: var(--text);
+    color: var(--text-2);
   }
-  .dark .hero-honesty p { color: var(--text-2); }
   .hero-honesty code {
     font-family: var(--mono);
     font-size: 12px;
@@ -1648,6 +1647,43 @@ export const showcaseStyles = `
     color: var(--text-3);
   }
 
+  /* Empty state: one plain line + a clickable hairline pill that fills the
+     input with the example query and runs the scripted flow. */
+  .shop-empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 0 4px;
+  }
+
+  .shop-empty-line {
+    font-size: 14px;
+    color: var(--text-3);
+    margin: 0;
+  }
+
+  .shop-empty-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 0 14px;
+    height: 30px;
+    border-radius: 9999px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-2);
+    font-size: 13px;
+    font-family: var(--font);
+    cursor: pointer;
+    transition: color 150ms ease, border-color 150ms ease, background 150ms ease;
+  }
+
+  .shop-empty-pill:hover {
+    color: var(--text);
+    border-color: var(--text-3);
+    background: var(--grayA3);
+  }
+
   /* ─── Theme switcher ─── */
   /* Left-aligned to the palette's edge so control (tabs) and result (palette)
      share one spine. */
@@ -1708,12 +1744,22 @@ export const showcaseStyles = `
     z-index: 1;
   }
 
+  /* The landing's one handmade moment: a quiet Caveat margin note in the
+     whitespace below the honesty fine print, its sketched arrow pointing
+     toward the palette in the right column. In-flow (no absolute positioning)
+     so it can never overflow or collide with the column at any width. */
   .demo-hint {
-    position: absolute;
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
+    position: relative;
+    display: inline-flex;
+    align-items: flex-end;
+    gap: 8px;
+    margin-top: 20px;
+    padding: 0;
+    background: none;
+    border: none;
+    max-width: 100%;
     cursor: pointer;
+    text-align: left;
     transition: opacity 0.15s ease;
   }
 
@@ -1727,7 +1773,8 @@ export const showcaseStyles = `
 
   .demo-hint-arrow {
     color: var(--gray8);
-    margin-bottom: -4px;
+    flex-shrink: 0;
+    margin-bottom: 2px;
     overflow: visible;
     transition: color 0.15s ease;
   }
@@ -1736,13 +1783,13 @@ export const showcaseStyles = `
     font-family: 'Caveat', 'Segoe Print', 'Comic Sans MS', cursive;
     font-size: 17px;
     color: var(--gray9);
-    max-width: 200px;
     line-height: 1.3;
     transition: color 0.15s ease;
-    white-space: nowrap;
   }
 
-  @media (max-width: 1100px) {
+  /* Desktop-only: below 980px the hero stacks and the arrow would point at
+     nothing (also covers the required <=900px hide). */
+  @media (max-width: 980px) {
     .demo-hint { display: none; }
   }
 
@@ -1986,6 +2033,28 @@ export const showcaseStyles = `
     }
     .hero-copy { max-width: 34rem; }
     .demo-area, .code-area { max-width: none; }
+  }
+
+  /* Product before fine print on small screens: the showcase (tabs + palette
+     + code) follows the sub paragraph directly; the walkthrough CTA,
+     npm/GitHub, and the honesty note become fine print BELOW the product.
+     Pure CSS order on the existing hero — desktop structure untouched:
+     hero-copy dissolves (display: contents) so its children and the showcase
+     become orderable siblings of the .hero flex column. */
+  @media (max-width: 900px) {
+    .hero {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+    .hero-copy { display: contents; }
+    .title-row { order: 0; }
+    .tagline { order: 1; margin-top: 14px; }
+    .tagline-sub { order: 2; }
+    .hero-showcase { order: 3; margin-top: 28px; }
+    .hero-walkthrough { order: 4; margin-top: 32px; align-self: flex-start; }
+    .hero-actions { order: 5; }
+    .hero-honesty { order: 6; }
   }
 
   @media (max-width: 640px) {

@@ -201,7 +201,7 @@ const handleToolExecute = async (toolName: string, _params: Record<string, any>)
 // Theme: DevOps
 // ─────────────────────────────────────────────────────────
 
-export default function DevOpsTheme() {
+export default function DevOpsTheme({ placeholder }: { placeholder?: string }) {
   return (
     <div className="palette-container devops-theme">
       <Command
@@ -214,7 +214,10 @@ export default function DevOpsTheme() {
           requireApproval: true,
         }}
       >
-        <Command.Input autoFocus placeholder="What needs to be done?" />
+        {/* No autoFocus: the landing's guarded focus effect owns all focusing,
+            so React's commit-phase autofocus never fires the focusin that
+            would cancel the ghost-typed placeholder. */}
+        <Command.Input placeholder={placeholder ?? 'What needs to be done?'} />
         <Command.List>
           <Command.Empty>No commands found.</Command.Empty>
           <Command.AgentHint />

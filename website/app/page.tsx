@@ -66,7 +66,7 @@ type ThemeId = (typeof THEMES)[number]['id']
 // Theme renderer map
 // ─────────────────────────────────────────────────────────
 
-const THEME_COMPONENTS: Record<ThemeId, React.FC> = {
+const THEME_COMPONENTS: Record<ThemeId, React.FC<{ placeholder?: string }>> = {
   raycast: RaycastTheme,
   linear: LinearTheme,
   smarthome: SmartHomeTheme,
@@ -74,26 +74,41 @@ const THEME_COMPONENTS: Record<ThemeId, React.FC> = {
   shop: ShopTheme,
 }
 
+// ─── Ghost-typing placeholder (the palette input "demonstrates itself") ───
+// Placeholder ONLY: never writes the input's value, never fakes a run, never
+// steals focus. Always framed as `Try: “…”` so it reads as a suggestion, not
+// live typing. Cancelled permanently by any user interaction with the
+// palette. Reduced motion gets the same placeholder, static.
+const GHOST_IDLE_MS = 3500 // idle before the first ghost-typed hint
+const GHOST_TYPE_MS = 45 //   per-character typing cadence
+const GHOST_HOLD_MS = 2500 // hold the full hint before clearing
+const GHOST_GAP_MS = 2600 //  gentle pause between cycles
+
 // ─────────────────────────────────────────────────────────
 // Code snippets per theme
 // ─────────────────────────────────────────────────────────
 
 const THEME_CODE: Record<ThemeId, { code: string; highlights: Record<string, 'kw' | 'fn' | 'str' | 'attr' | 'tag' | 'comment'> }> = {
   raycast: {
-    code: `const tools = [
+    code: `// 1. define tools once — JSON Schema in, forms + WebMCP out
+const tools = [
   {
     name: 'clipboard_history',
     label: 'Clipboard History',
     inputSchema: {
       type: 'object',
       properties: {
-        filter: { type: 'string', enum: ['All', 'Text', 'Images'] },
+        filter: {
+          type: 'string',
+          enum: ['All', 'Text', 'Images'],
+        },
         limit: { type: 'number', minimum: 1, maximum: 50 },
       },
     },
   },
 ]
 
+// 2. one component, two consumers
 <Command tools={tools} onToolExecute={exec}>
   <Command.Input />
   <Command.List />
@@ -103,7 +118,8 @@ const THEME_CODE: Record<ThemeId, { code: string; highlights: Record<string, 'kw
     highlights: {},
   },
   linear: {
-    code: `const tools = [
+    code: `// 1. define tools once — JSON Schema in, forms + WebMCP out
+const tools = [
   { name: 'assign_to_me', label: 'Assign to me' },
   {
     name: 'change_status',
@@ -116,6 +132,7 @@ const THEME_CODE: Record<ThemeId, { code: string; highlights: Record<string, 'kw
   },
 ]
 
+// 2. one component, two consumers — plans gated by approval
 <Command tools={tools} onToolExecute={exec}
   agent={{ provider: 'anthropic', requireApproval: true }}>
   <Command.Input />
@@ -127,13 +144,15 @@ const THEME_CODE: Record<ThemeId, { code: string; highlights: Record<string, 'kw
     highlights: {},
   },
   smarthome: {
-    code: `const tools = [
+    code: `// 1. define tools once — JSON Schema in, forms + WebMCP out
+const tools = [
   { name: 'set_brightness', label: 'Adjust Lights' },
   { name: 'set_temperature', label: 'Set Temperature' },
   { name: 'play_media', label: 'Play Media' },
 ]
 
-// requireApproval: false — agent executes immediately
+// 2. one component, two consumers —
+//    requireApproval: false, so the agent executes immediately
 <Command tools={tools} onToolExecute={exec}
   agent={{ provider: 'anthropic', requireApproval: false }}>
   <Command.Input />
@@ -146,7 +165,8 @@ const THEME_CODE: Record<ThemeId, { code: string; highlights: Record<string, 'kw
     highlights: {},
   },
   devops: {
-    code: `const tools = [
+    code: `// 1. define tools once — JSON Schema in, forms + WebMCP out
+const tools = [
   { name: 'run_tests', label: 'Run Tests' },
   { name: 'build', label: 'Build' },
   {
@@ -154,13 +174,17 @@ const THEME_CODE: Record<ThemeId, { code: string; highlights: Record<string, 'kw
     inputSchema: {
       type: 'object',
       properties: {
-        environment: { type: 'string', enum: ['staging', 'production'] },
+        environment: {
+          type: 'string',
+          enum: ['staging', 'production'],
+        },
         branch: { type: 'string' },
       },
     },
   },
 ]
 
+// 2. one component, two consumers
 <Command tools={tools} onToolExecute={exec}
   agent={{ provider: 'anthropic', requireApproval: true }}>
   <Command.Input />
@@ -171,12 +195,14 @@ const THEME_CODE: Record<ThemeId, { code: string; highlights: Record<string, 'kw
     highlights: {},
   },
   shop: {
-    code: `const tools = [
+    code: `// 1. define tools once — JSON Schema in, forms + WebMCP out
+const tools = [
   { name: 'search_products', label: 'Search' },
   { name: 'get_recommendations', label: 'Recommend' },
 ]
 
-// No <Command.Tool> rendered — pure agent-first UI
+// 2. one component, two consumers —
+//    no <Command.Tool> rendered: agent-first UI
 <Command tools={tools} onToolExecute={exec}
   shouldFilter={false}
   agent={{ provider: 'anthropic', requireApproval: false }}>
@@ -205,6 +231,14 @@ export default function ShowcasePage() {
   const [dark, setDark] = useState(false)
   const [codeCopied, setCodeCopied] = useState(false)
   const themeTabsRef = useRef<HTMLDivElement>(null)
+  const demoAreaRef = useRef<HTMLDivElement>(null)
+  // Ghost-typed placeholder for the active palette input. null = the theme's
+  // own default placeholder.
+  const [ghost, setGhost] = useState<string | null>(null)
+  const ghostCancelledRef = useRef(false)
+  // True only while WE call input.focus() (theme-change refocus), so the
+  // resulting focusin never counts as user interaction with the palette.
+  const progFocusRef = useRef(false)
 
   // ─── DevTools easter egg (client-only, once) ───
   // Honest and dev-facing, matching /learn's: detects whether a WebMCP surface
@@ -244,8 +278,8 @@ export default function ShowcasePage() {
     function handleKeyDown(e: KeyboardEvent) {
       // Never hijack arrows from editable controls: caret movement and
       // option selection win. Exception: an EMPTY text input (the
-      // auto-focused palette search) has no caret to move, so the theme
-      // shortcut still works from the default resting state.
+      // programmatically focused palette search) has no caret to move, so
+      // the theme shortcut still works from the default resting state.
       const target = e.target as HTMLElement | null
       if (target) {
         if (target.isContentEditable || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT') return
@@ -270,12 +304,24 @@ export default function ShowcasePage() {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [activeTheme])
 
-  // Focus the active theme's command input
+  // Focus the active theme's command input. This effect is the ONLY thing
+  // that focuses the palette — the theme inputs deliberately have no
+  // autoFocus, because React's commit-phase autofocus fires an unguarded
+  // focusin inside .demo-area that would cancel the ghost-typed placeholder
+  // on load and on every tab switch.
   useEffect(() => {
     // Try immediately, then retry after animation completes
     const tryFocus = () => {
       const input = document.querySelector('.palette-container [cmdk-input]') as HTMLInputElement
-      if (input) { input.focus(); return true }
+      if (input) {
+        // Programmatic refocus — must not read as user interaction (which
+        // would cancel the ghost-typed placeholder). focusin fires
+        // synchronously inside .focus(), so the flag window is exact.
+        progFocusRef.current = true
+        input.focus()
+        progFocusRef.current = false
+        return true
+      }
       return false
     }
     if (tryFocus()) return
@@ -305,11 +351,91 @@ export default function ShowcasePage() {
 
   // /learn's motion character: one calm ease curve shared across the two pages.
   const ease = [0.32, 0, 0.24, 1] as const
-  const reduced = !!useReducedMotion()
+  // Reduced-motion preference, deferred one render: the server can't know
+  // the preference, so the first client render must match the SSR markup
+  // (framer's initial styles included) or React 19 logs a hydration style
+  // mismatch for reduced-motion users. Flipping via effect keeps hydration
+  // clean; the flip lands in the same commit as `mounted`, so every
+  // entrance still collapses to 0s before it plays.
+  const prefersReduced = useReducedMotion()
+  const [reduced, setReduced] = useState(false)
+  useEffect(() => { setReduced(!!prefersReduced) }, [prefersReduced])
   // Reduced motion: keep the entrance choreography's timing structure but
   // collapse each transition to 0s so nothing translates or fades in.
   const rt = (duration: number, delay: number) =>
     reduced ? { duration: 0, delay: 0, ease } : { duration, delay, ease }
+
+  // ─── Ghost-typing placeholder loop ───
+  // Types the ACTIVE theme's hint into the placeholder (never the value),
+  // holds, clears, and gently repeats. Restarts clean on tab change; cancels
+  // permanently on any user interaction with the palette (see listener
+  // effect below). Both variants carry the `Try: “…”` framing so the
+  // animation reads as a suggestion, never as live typing. Reduced motion:
+  // the same placeholder, static.
+  useEffect(() => {
+    const hint = THEMES.find((t) => t.id === activeTheme)?.hint
+    if (!hint || ghostCancelledRef.current) {
+      setGhost(null)
+      return
+    }
+    if (reduced) {
+      setGhost(`Try: “${hint}”`)
+      return () => setGhost(null)
+    }
+    let alive = true
+    let interval = 0
+    const timers: number[] = []
+    const bail = () => {
+      alive = false
+      if (interval) clearInterval(interval)
+      timers.forEach(clearTimeout)
+      setGhost(null)
+    }
+    const type = () => {
+      if (!alive || ghostCancelledRef.current) return bail()
+      let i = 0
+      interval = window.setInterval(() => {
+        if (!alive || ghostCancelledRef.current) return bail()
+        i++
+        setGhost(`Try: “${hint.slice(0, i)}”`)
+        if (i >= hint.length) {
+          clearInterval(interval)
+          interval = 0
+          timers.push(
+            window.setTimeout(() => {
+              if (!alive || ghostCancelledRef.current) return bail()
+              setGhost(null)
+              timers.push(window.setTimeout(type, GHOST_GAP_MS))
+            }, GHOST_HOLD_MS),
+          )
+        }
+      }, GHOST_TYPE_MS)
+    }
+    timers.push(window.setTimeout(type, GHOST_IDLE_MS))
+    return bail
+  }, [activeTheme, reduced])
+
+  // Any real user interaction with the palette cancels ghost typing for good
+  // — the demo must never talk over someone actually using it.
+  useEffect(() => {
+    const el = demoAreaRef.current
+    if (!el) return
+    const cancel = () => {
+      ghostCancelledRef.current = true
+      setGhost(null)
+    }
+    const onFocusIn = () => {
+      if (!progFocusRef.current) cancel()
+    }
+    el.addEventListener('pointerdown', cancel)
+    el.addEventListener('keydown', cancel)
+    el.addEventListener('focusin', onFocusIn)
+    return () => {
+      el.removeEventListener('pointerdown', cancel)
+      el.removeEventListener('keydown', cancel)
+      el.removeEventListener('focusin', onFocusIn)
+    }
+  }, [])
 
   return (
     <>
@@ -364,11 +490,11 @@ export default function ShowcasePage() {
                 <span className="version-badge">v0.4.1</span>
               </div>
               <p className="tagline">The command palette<br />for the agentic web.</p>
-              <p className="tagline-sub"><strong>agentk is a React command palette.</strong> Define your capabilities once as JSON&nbsp;Schema tools. People get the palette; AI agents get a WebMCP endpoint &mdash; one definition, two ways in.</p>
+              <p className="tagline-sub"><strong>A React component</strong>: define your capabilities once as JSON&nbsp;Schema tools. People get the palette; AI agents get a WebMCP endpoint &mdash; one definition, two ways in.</p>
 
               {/* Walkthrough — leads the CTA stack, the interactive proof */}
               <a href="/learn" className="hero-walkthrough">
-                See WebMCP drive a live UI &mdash; two minutes
+                Watch WebMCP drive a page I built &mdash; two&nbsp;minutes
                 <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
               </a>
 
@@ -404,6 +530,48 @@ export default function ShowcasePage() {
                 <span className="hero-honesty-eyebrow">Origin trial</span>
                 <p>WebMCP is a Chrome origin trial, not a shipped standard. agentk feature-detects it and falls back to a plain command palette wherever it&rsquo;s missing &mdash; nothing breaks.</p>
               </div>
+
+              {/* The page's one handmade moment: a quiet margin note (Caveat)
+                  nudging toward the live palette. Desktop-only; clicking it
+                  focuses the palette input. */}
+              {(() => {
+                const hint = THEMES.find((t) => t.id === activeTheme)?.hint
+                if (!hint) return null
+                return (
+                  <button
+                    type="button"
+                    className="demo-hint"
+                    onClick={() => {
+                      const input = document.querySelector('.palette-container [cmdk-input]') as HTMLInputElement | null
+                      input?.focus()
+                    }}
+                  >
+                    <span className="demo-hint-text">try: &ldquo;{hint.toLowerCase()}&rdquo;</span>
+                    <svg
+                      className="demo-hint-arrow"
+                      width="34"
+                      height="22"
+                      viewBox="0 0 34 22"
+                      fill="none"
+                      aria-hidden="true"
+                    >
+                      <path
+                        d="M2 19c9 1 21-2 27-13"
+                        stroke="currentColor"
+                        strokeWidth="1.4"
+                        strokeLinecap="round"
+                      />
+                      <path
+                        d="M24 6.5 29.5 5l.6 5.6"
+                        stroke="currentColor"
+                        strokeWidth="1.4"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </button>
+                )
+              })()}
             </motion.div>
 
             {/* ─── Live showcase (right): tabs → palette → source → CTA ─── */}
@@ -466,6 +634,7 @@ export default function ShowcasePage() {
               {/* Palette */}
               <motion.div
                 className="demo-area"
+                ref={demoAreaRef}
                 layout
                 initial={reduced ? false : { opacity: 0, y: 24, scale: 0.98 }}
                 animate={mounted ? { opacity: 1, y: 0, scale: 1 } : {}}
@@ -479,7 +648,7 @@ export default function ShowcasePage() {
                     exit={{ opacity: 0 }}
                     transition={{ duration: 0.12 }}
                   >
-                    <ActiveThemeComponent />
+                    <ActiveThemeComponent placeholder={ghost ?? undefined} />
                   </motion.div>
                 </AnimatePresence>
               </motion.div>

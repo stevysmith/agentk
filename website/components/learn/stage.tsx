@@ -99,6 +99,10 @@ type Tune = typeof TUNE
 
 const INSTANT: Transition = { duration: 0 }
 
+// #7a — delay before "That's the whole loop." fades in after the approved
+// run's last tick (device flash is 600ms, so the stage has settled by then).
+const LOOP_LINE_DELAY_MS = 800
+
 // Stage indices (mirrors STAGE in app/learn/page.tsx)
 const S = { PIXELS: 0, TOOLS: 1, PALETTE: 2, AGENT: 3, PLAN: 4, APPROVAL: 5, SHIP: 6 } as const
 
@@ -227,6 +231,7 @@ export function LearnStage(props: LearnStageProps) {
         onApprove={props.onApprove}
         onReject={props.onReject}
         onResetApproval={props.onResetApproval}
+        reducedMotion={reducedMotion}
         T={T}
         tune={tune}
       />,
@@ -317,6 +322,26 @@ export function LearnStage(props: LearnStageProps) {
 // ─────────────────────────────────────────────────────────
 
 function Collapse({ show, className = '', children }: { show: boolean; className?: string; children: ReactNode }) {
+  // #4 fix — once the reveal has landed, mark the collapse settled so the CSS
+  // can release the 0fr→1fr clip (overflow + track) and the open block
+  // resolves to fit-content. Without this, the reveal's height is whatever
+  // the grid-rows transition settled at — an interrupted transition or
+  // sub-pixel track rounding leaves it a hair short of the content, and the
+  // overflow:hidden inner then clips the last line (the plan rows' param
+  // chips) mid-glyph until some later stage forces a re-layout. Closing
+  // clears the flag synchronously, so the collapse animation is untouched.
+  const [settled, setSettled] = useState(false)
+  useEffect(() => {
+    if (!show) {
+      setSettled(false)
+      return
+    }
+    // chromeMs + slack: fires after the grow transition has finished (and
+    // immediately-ish under reduced motion, where the reveal is instant).
+    const t = setTimeout(() => setSettled(true), TUNE.chromeMs + 80)
+    return () => clearTimeout(t)
+  }, [show])
+
   // inert alone (no aria-hidden): it removes the subtree from both the tab
   // order and the accessibility tree, and unlike aria-hidden it is legal
   // while a descendant still holds focus (the browser moves focus out).
@@ -324,6 +349,7 @@ function Collapse({ show, className = '', children }: { show: boolean; className
     <div
       className={`ls-collapse ${className}`}
       data-show={show || undefined}
+      data-settled={(show && settled) || undefined}
       inert={show ? undefined : true}
     >
       <div className="ls-collapse-inner">{children}</div>
@@ -350,6 +376,7 @@ function ToolRail({
   onApprove,
   onReject,
   onResetApproval,
+  reducedMotion,
   T,
   tune,
 }: {
@@ -363,11 +390,29 @@ function ToolRail({
   onApprove: () => void
   onReject: () => void
   onResetApproval: () => void
+  reducedMotion: boolean
   T: MotionSet
   tune: Tune
 }) {
   const copy = agentModeCopy(webmcp.mode, webmcp.surface)
   const { status, doneCount } = approval
+
+  // #7a — the ending lands: one quiet serif line, ~800ms after the run's
+  // last tick has settled (instant under reduced motion). Once per run —
+  // it resets whenever the approval state leaves 'done'.
+  const [loopLineShown, setLoopLineShown] = useState(false)
+  useEffect(() => {
+    if (status !== 'done') {
+      setLoopLineShown(false)
+      return
+    }
+    if (reducedMotion) {
+      setLoopLineShown(true)
+      return
+    }
+    const t = setTimeout(() => setLoopLineShown(true), LOOP_LINE_DELAY_MS)
+    return () => clearTimeout(t)
+  }, [status, reducedMotion])
 
   const planRank = useMemo(() => new Map(plan.map((c, i) => [c.toolName, i] as const)), [plan])
   const planByName = useMemo(() => new Map(plan.map((c) => [c.toolName, c] as const)), [plan])
@@ -485,12 +530,15 @@ function ToolRail({
         </div>
       </Collapse>
 
-      <Collapse show={stage === S.PLAN}>
+      <Collapse show={stage === S.PLAN || stage === S.APPROVAL}>
         <div className="ls-chrome-block ls-chrome-block--below">
           {/* Honesty disclosure — lifted to body-copy contrast with an
               intentional hairline marker (see .ls-honesty). The provider list
               lives ONCE, in the prose card (page.tsx STEPS 'plan'); this
-              footnote owns only the scripted-planner truth. */}
+              footnote owns only the scripted-planner truth. It stays pinned
+              wherever the plan is visible — the prompt bubble and call
+              params persist onto the approval stage (same gating as the
+              chrome block above), so the disclosure travels with them. */}
           <p className="ls-card-note ls-honesty">
             Planner scripted for this walkthrough — keyword matching, not a live LLM.
           </p>
@@ -527,6 +575,13 @@ function ToolRail({
               <p className="ls-approval-status">Plan discarded. Nothing ran — that&rsquo;s the point.</p>
             )}
           </div>
+          {/* The ending lands — a single quiet serif line once the devices
+              have settled. Collapse keeps it at zero height until then. */}
+          <Collapse show={loopLineShown}>
+            <p className="ls-loop-line" data-shown={loopLineShown || undefined}>
+              That&rsquo;s the whole loop.
+            </p>
+          </Collapse>
           <Collapse show={status === 'done' || status === 'rejected'}>
             <div className="ls-approval-reset">
               <button type="button" className="ls-ghost-btn" onClick={onResetApproval}>
@@ -703,9 +758,9 @@ function RailRow({
 // the rest of the stage, so running a tool here drives the
 // device cards above (state continuity).
 //
-// Focus: Command.Input has NO autoFocus (the landing page uses
-// it; here it must be off) so scrolling into stage 2 never
-// yanks the caret. While inactive the whole zone is inert (set
+// Focus: Command.Input has NO autoFocus (the landing focuses
+// its palette programmatically; here it must be off) so
+// scrolling into stage 2 never yanks the caret. While inactive the whole zone is inert (set
 // by the zone wrapper), keeping this out of the tab order and
 // the a11y tree exactly like every other bounded zone member.
 // ─────────────────────────────────────────────────────────
@@ -841,18 +896,18 @@ function Devices({
           <span className="ls-device-name">Speaker</span>
         </div>
         <div className="ls-device-reading" aria-live="polite">{home.music.playing ? home.music.genre : 'Silent'}</div>
+        {/* The EQ is ALWAYS present: static 2px stubs while silent, animating
+            on play (CSS keys off data-playing; reduced motion freezes both). */}
+        <div className="ls-eq" aria-hidden="true" data-playing={home.music.playing || undefined}>
+          {[0, 1, 2, 3, 4].map((i) => <span key={i} className="ls-eq-bar" style={{ animationDelay: `${i * 0.13}s` }} />)}
+        </div>
         {home.music.playing ? (
-          <div className="ls-eq" aria-hidden="true">
-            {[0, 1, 2, 3, 4].map((i) => <span key={i} className="ls-eq-bar" style={{ animationDelay: `${i * 0.13}s` }} />)}
-          </div>
+          <button className="ls-play-btn" onClick={() => executeTool('play_music', { genre: 'off' })}>
+            Stop
+          </button>
         ) : (
           <button className="ls-play-btn" onClick={() => executeTool('play_music', { genre: 'ambient' })}>
             Play ambient
-          </button>
-        )}
-        {home.music.playing && (
-          <button className="ls-play-btn" onClick={() => executeTool('play_music', { genre: 'off' })}>
-            Stop
           </button>
         )}
         <DeviceChip show={showChips} name="play_music" T={T} />
@@ -936,7 +991,7 @@ function agentModeCopy(
     case 'live-registered':
       return {
         badge: `live — registered on ${surface}`,
-        note: `This page just registered these tools on ${surface}. Chrome doesn’t expose a page-readable listing here, so this shows the exact catalog that was registered.`,
+        note: 'Chrome exposes no page-readable listing — this is the exact catalog the page registered.',
         live: true,
       }
     case 'simulated':
@@ -1043,6 +1098,16 @@ function ShipZone() {
           </a>
         ))}
       </div>
+      {/* Closing footnote — verifiably true: PaletteZone (step 3) renders the
+          shipped agentk <Command> from the npm package, wired to the same
+          LEARN_TOOLS catalog used everywhere else on this stage. (The
+          approval rail at step 6 is this walkthrough's own UI, so no claim
+          is made about it.) */}
+      <p className="ls-ship-close">
+        The palette you used at step 3 is the real agentk <code>&lt;Command&gt;</code> —
+        the same component you npm install, wired to the same three tools as
+        everything else on this stage.
+      </p>
     </div>
   )
 }

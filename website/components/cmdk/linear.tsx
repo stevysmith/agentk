@@ -186,7 +186,7 @@ const handleToolExecute = async (toolName: string, params: Record<string, any>) 
 // Theme: Linear
 // ─────────────────────────────────────────────────────────
 
-export default function LinearTheme() {
+export default function LinearTheme({ placeholder }: { placeholder?: string }) {
   return (
     <div className="palette-container linear-theme">
       <Command
@@ -200,7 +200,10 @@ export default function LinearTheme() {
         }}
       >
         <div className="linear-badge">Issue - FUN-343</div>
-        <Command.Input autoFocus placeholder="Type a command or search..." />
+        {/* No autoFocus: the landing's guarded focus effect owns all focusing,
+            so React's commit-phase autofocus never fires the focusin that
+            would cancel the ghost-typed placeholder. */}
+        <Command.Input placeholder={placeholder ?? 'Type a command or search...'} />
         <Command.List>
           <Command.Group heading="Quick actions">
             <Command.IntentTrigger query="assign this to me and mark as done">

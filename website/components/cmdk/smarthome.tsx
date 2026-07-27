@@ -232,7 +232,7 @@ const handleToolExecute = async (toolName: string, params: Record<string, any>) 
 // Theme: Smart Home (autonomous agent, no approval gate)
 // ─────────────────────────────────────────────────────────
 
-export default function SmartHomeTheme() {
+export default function SmartHomeTheme({ placeholder }: { placeholder?: string }) {
   return (
     <div className="palette-container smarthome-theme">
       <Command
@@ -245,7 +245,10 @@ export default function SmartHomeTheme() {
           requireApproval: false,
         }}
       >
-        <Command.Input autoFocus placeholder="What would you like to do?" />
+        {/* No autoFocus: the landing's guarded focus effect owns all focusing,
+            so React's commit-phase autofocus never fires the focusin that
+            would cancel the ghost-typed placeholder. */}
+        <Command.Input placeholder={placeholder ?? 'What would you like to do?'} />
         <Command.List>
           <Command.Empty>No devices found.</Command.Empty>
           <Command.AgentHint />

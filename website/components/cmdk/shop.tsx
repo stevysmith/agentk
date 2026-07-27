@@ -1,5 +1,6 @@
 'use client'
 
+import { useRef } from 'react'
 import { Command, type AgentKToolDef, type AgentKProvider } from 'agentk'
 
 // ─────────────────────────────────────────────────────────
@@ -107,9 +108,30 @@ const handleToolExecute = async (toolName: string, params: Record<string, any>) 
 // Theme: Shop — pure agent-first NL interaction
 // ─────────────────────────────────────────────────────────
 
-export default function ShopTheme() {
+const EMPTY_HINT = 'Something casual under $100'
+
+export default function ShopTheme({ placeholder }: { placeholder?: string }) {
+  const rootRef = useRef<HTMLDivElement>(null)
+
+  // Fills the input with the hint (the React-safe native-setter way) and
+  // presses Enter for the user, so the pill runs the same scripted flow that
+  // typing the query would.
+  const runHint = () => {
+    const input = rootRef.current?.querySelector('[cmdk-input]') as HTMLInputElement | null
+    if (!input) return
+    const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set
+    setter?.call(input, EMPTY_HINT)
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+    input.focus()
+    // Next frame: the agent-hint item has rendered and holds selection, so
+    // Enter submits the query through the normal path.
+    requestAnimationFrame(() => {
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+    })
+  }
+
   return (
-    <div className="palette-container shop-theme">
+    <div className="palette-container shop-theme" ref={rootRef}>
       <Command
         label="Shop"
         tools={shopTools}
@@ -121,9 +143,35 @@ export default function ShopTheme() {
         }}
         shouldFilter={false}
       >
-        <Command.Input autoFocus placeholder="What are you looking for?" />
+        {/* No autoFocus: the landing's guarded focus effect owns all focusing,
+            so React's commit-phase autofocus never fires the focusin that
+            would cancel the ghost-typed placeholder. */}
+        <Command.Input placeholder={placeholder ?? 'What are you looking for?'} />
         <Command.List>
-          <Command.Empty>Type to search with AI...</Command.Empty>
+          <Command.Empty>
+            <div className="shop-empty-state">
+              <p className="shop-empty-line">No tools rendered &mdash; describe what you want.</p>
+              {/* cmdk's root keydown handler preventDefaults Enter (list
+                  selection), which kills the button's native Enter-to-click
+                  activation — so run the hint from keydown directly and keep
+                  the event out of the palette's handler. Space still
+                  activates natively (click fires on keyup). */}
+              <button
+                type="button"
+                className="shop-empty-pill"
+                onClick={runHint}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    runHint()
+                  }
+                }}
+              >
+                &ldquo;{EMPTY_HINT}&rdquo;
+              </button>
+            </div>
+          </Command.Empty>
           <Command.AgentHint />
         </Command.List>
         <Command.ToolResult />

@@ -87,8 +87,8 @@ const STEPS: Step[] = [
     id: 'pixels',
     title: 'Agents browse like humans. Badly.',
     body: [
-      'Here’s a tiny smart home. Three devices. They work — toggle the light, nudge the thermostat, play some music.',
-      'Now picture an AI agent trying to do the same. Today it renders the page, scrapes the DOM, and guesses which pixel is a button. To an agent, this page is pixels.',
+      // ONE paragraph — the live devices demonstrate the rest.
+      'Now picture an AI agent trying to use it. Today it renders the page, scrapes the DOM, and guesses which pixel is a button. To an agent, this page is pixels.',
     ],
   },
   {
@@ -103,8 +103,7 @@ const STEPS: Step[] = [
     id: 'palette',
     title: 'Humans get a palette. Free.',
     body: [
-      'The same definitions render a command palette for people. Pick a tool and the parameter form is generated straight from its schema — an enum becomes a dropdown, a bounded number becomes a slider.',
-      'Try it. The palette in the panel is live, and it drives the devices above it.',
+      'Try it: the palette below is live, and it drives the devices above. Each parameter form is generated straight from the tool’s schema — an enum becomes a dropdown, a bounded number becomes a slider.',
     ],
   },
   // ORIGIN-TRIAL RENEWAL CHECKLIST (token expires 2026-11-17 — see
@@ -126,7 +125,10 @@ const STEPS: Step[] = [
     title: 'One sentence, planned across tools.',
     body: [
       'Because the tools are typed, natural language can compile into a plan: one sentence in, three tool calls with real parameters out.',
-      'Full disclosure: the planner here is scripted keyword matching, so this walkthrough works without an API key. In your app you plug in Anthropic, OpenAI, Gemini, or your own provider.',
+      // The on-stage footnote owns the scripted-planner disclosure
+      // (keyword matching, not a live LLM) — this card only carries the
+      // no-API-key consequence and the provider list.
+      'The planner here is scripted so the walkthrough needs no API key — in your app you plug in Anthropic, OpenAI, Gemini, or your own provider.',
     ],
   },
   {
@@ -144,8 +146,9 @@ const STEPS: Step[] = [
     id: 'ship',
     title: 'Ship it — with honest expectations.',
     body: [
-      'WebMCP is early. It’s a Chrome origin trial, not a shipped standard, and agentk degrades to a command palette without it. That’s the deal today.',
-      'If the trade sounds right, everything you just used is one npm install away.',
+      // The WHERE THIS STANDS panel owns the origin-trial facts — the card
+      // just points at them and lands the close.
+      'WebMCP is early — the panel is the deal today. If the trade sounds right, everything you just used is one npm install away.',
     ],
   },
 ]
@@ -595,7 +598,12 @@ const learnStyles = `
     color: var(--text-3);
     font-variant-numeric: tabular-nums;
     margin-bottom: 10px;
+    /* matches the card's own 380ms activation ease */
+    transition: color 380ms cubic-bezier(0.32, 0, 0.24, 1);
   }
+
+  /* the active card's step number picks up the accent — a quiet progress cue */
+  .learn-step-card[data-active] .learn-step-num { color: var(--accent); }
 
   .learn-step-card h2 {
     font-family: var(--serif);
@@ -813,10 +821,18 @@ const learnStyles = `
   .ls-play-btn:hover { background: rgba(255,255,255,0.08); color: var(--text); }
 
   .ls-eq { display: flex; gap: 3px; height: 16px; align-items: flex-end; }
+  /* Idle state: the EQ is always present as quiet 2px stubs, so the speaker
+     card doesn't gain a brand-new element the first time music plays. */
   .ls-eq-bar {
     width: 4px;
+    height: 2px;
+    opacity: 0.35;
     background: #a78bfa;
     border-radius: 2px;
+    transition: opacity 300ms ease;
+  }
+  .ls-eq[data-playing] .ls-eq-bar {
+    opacity: 1;
     animation: ls-eq 0.9s ease-in-out infinite alternate;
   }
   @keyframes ls-eq {
@@ -922,6 +938,18 @@ const learnStyles = `
   }
   .ls-collapse[data-show] { grid-template-rows: 1fr; opacity: 1; }
   .ls-collapse-inner { overflow: hidden; min-height: 0; }
+
+  /* #4 — after the reveal lands (data-settled, set past the grow
+     transition), release the clip so the open block resolves to
+     fit-content: an interrupted 0fr→1fr transition or sub-pixel track
+     rounding can settle the reveal a hair short of its content, and the
+     overflow:hidden inner then shaves the bottom of the last line (the
+     plan rows' param chips clipped mid-glyph). Closing removes both
+     attributes synchronously, so the collapse animation is unchanged. */
+  .ls-collapse[data-settled] .ls-collapse-inner {
+    overflow: visible;
+    min-height: max-content;
+  }
 
   .ls-chrome-block { padding-bottom: 10px; }
   .ls-chrome-block--below { padding: 8px 0 0; display: flex; flex-direction: column; }
@@ -1218,6 +1246,22 @@ const learnStyles = `
   @keyframes ls-spin { to { transform: rotate(360deg); } }
 
   .ls-approval-status { font-size: 13px; color: var(--text-2); padding: 0 0 10px; line-height: 1.5; }
+
+  /* The ending lands: one quiet serif line after the run settles. Fade is
+     CSS-only (opacity via [data-shown]); the Collapse wrapper keeps it at
+     zero height while hidden so it never inflates the zone. */
+  .ls-loop-line {
+    font-family: var(--serif);
+    font-optical-sizing: auto;
+    font-size: 17px;
+    font-weight: 500;
+    letter-spacing: 0.002em;
+    color: var(--text-2);
+    padding: 2px 0 10px;
+    opacity: 0;
+    transition: opacity 600ms var(--ease-soft);
+  }
+  .ls-loop-line[data-shown] { opacity: 1; }
   .ls-approval-reset { padding-bottom: 10px; }
   .ls-ghost-btn {
     align-self: flex-start;
@@ -1294,6 +1338,15 @@ const learnStyles = `
   .ls-ship-link:hover { color: var(--text); }
   .ls-ship-link svg { transition: transform 150ms ease; }
   .ls-ship-link:hover svg { transform: translateX(2px); }
+
+  /* Closing footnote — same fine-print register as .ls-card-note */
+  .ls-ship-close {
+    font-size: 12px;
+    line-height: 1.55;
+    color: var(--text-3);
+    border-top: 1px solid var(--border);
+    padding-top: 10px;
+  }
 
   /* ─── Mobile: stage becomes a sticky top panel ─── */
 
@@ -1391,7 +1444,8 @@ const learnStyles = `
      --chrome-ms is set to 0ms inline — these rules catch the rest.) ─── */
 
   @media (prefers-reduced-motion: reduce) {
-    .ls-eq-bar { animation: none; height: 10px; }
+    .ls-eq-bar { transition: none; }
+    .ls-eq[data-playing] .ls-eq-bar { animation: none; height: 10px; }
     .ls-call-spinner { animation: none; }
     .ls-approve-dock [data-agentk-approval-approve][data-running] { animation: none; }
     /* D2 is JS-gated off under reduced motion; this is belt-and-suspenders. */
@@ -1407,6 +1461,7 @@ const learnStyles = `
     .ls-row,
     .ls-row-status,
     .ls-approval-gate,
+    .ls-loop-line,
     .ls-ghost-btn {
       transition: none;
     }
