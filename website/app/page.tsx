@@ -533,7 +533,9 @@ export default function ShowcasePage() {
 
               {/* The page's one handmade moment: a quiet margin note (Caveat)
                   nudging toward the live palette. Desktop-only; clicking it
-                  focuses the palette input. */}
+                  RUNS the suggestion — fills the palette input and submits so
+                  the theme's scripted demo flow plays (same fill-and-run
+                  mechanism as the Shop empty-state pill). */}
               {(() => {
                 const hint = THEMES.find((t) => t.id === activeTheme)?.hint
                 if (!hint) return null
@@ -543,7 +545,16 @@ export default function ShowcasePage() {
                     className="demo-hint"
                     onClick={() => {
                       const input = document.querySelector('.palette-container [cmdk-input]') as HTMLInputElement | null
-                      input?.focus()
+                      if (!input) return
+                      const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set
+                      setter?.call(input, hint)
+                      input.dispatchEvent(new Event('input', { bubbles: true }))
+                      input.focus()
+                      // Next frame: the agent-hint item has rendered and holds
+                      // selection, so Enter submits through the normal path.
+                      requestAnimationFrame(() => {
+                        input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+                      })
                     }}
                   >
                     <span className="demo-hint-text">try: &ldquo;{hint.toLowerCase()}&rdquo;</span>
