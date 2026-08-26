@@ -46,7 +46,7 @@ export type AgentKPlan = {
  * const config: AgentKAgentConfig = {
  *   provider: 'anthropic',
  *   apiKey: 'sk-...',
- *   model: 'claude-sonnet-4-20250514',
+ *   model: 'claude-sonnet-5',
  *   stream: true,
  *   timeout: 15000,
  * }
@@ -78,9 +78,9 @@ export type AgentKAgentConfig = {
   endpoint?: string
   /**
    * Model identifier to use. Each provider has a sensible default:
-   * - Anthropic: `'claude-sonnet-4-20250514'`
+   * - Anthropic: `'claude-sonnet-5'`
    * - OpenAI: `'gpt-4o'`
-   * - Google: `'gemini-2.0-flash'`
+   * - Google: `'gemini-3.5-flash'`
    * @default Provider-specific default
    */
   model?: string

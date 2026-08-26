@@ -18,7 +18,7 @@ import { toToolSchema, buildSystemPrompt, buildFallbackSummary } from './utils'
  *
  * @param prompt - The user's natural language input
  * @param tools - Available tools the LLM can call
- * @param config - Agent configuration. Uses `claude-sonnet-4-20250514` by default.
+ * @param config - Agent configuration. Uses `claude-sonnet-5` by default.
  * @param signal - Optional AbortSignal for request cancellation
  * @returns A promise resolving to an execution plan
  *
@@ -35,7 +35,7 @@ import { toToolSchema, buildSystemPrompt, buildFallbackSummary } from './utils'
  */
 export const anthropicProvider: AgentKProvider = async (prompt, tools, config, signal) => {
   const endpoint = config.endpoint || 'https://api.anthropic.com/v1/messages'
-  const model = config.model || 'claude-sonnet-4-20250514'
+  const model = config.model || 'claude-sonnet-5'
 
   const body: Record<string, any> = {
     model,

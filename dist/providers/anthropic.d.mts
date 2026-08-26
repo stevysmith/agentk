@@ -1,4 +1,4 @@
-import { c as AgentKProvider } from '../types-CXxYj9tM.mjs';
+import { c as AgentKProvider } from '../types-g0NlfvNL.mjs';
 
 /**
  * Anthropic (Claude) LLM provider.
@@ -10,7 +10,7 @@ import { c as AgentKProvider } from '../types-CXxYj9tM.mjs';
  *
  * @param prompt - The user's natural language input
  * @param tools - Available tools the LLM can call
- * @param config - Agent configuration. Uses `claude-sonnet-4-20250514` by default.
+ * @param config - Agent configuration. Uses `claude-sonnet-5` by default.
  * @param signal - Optional AbortSignal for request cancellation
  * @returns A promise resolving to an execution plan
  *

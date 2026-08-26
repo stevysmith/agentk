@@ -1,4 +1,4 @@
-import { c as AgentKProvider } from '../types-CXxYj9tM.mjs';
+import { c as AgentKProvider } from '../types-g0NlfvNL.mjs';
 
 /**
  * Google (Gemini) LLM provider.
@@ -9,7 +9,7 @@ import { c as AgentKProvider } from '../types-CXxYj9tM.mjs';
  *
  * @param prompt - The user's natural language input
  * @param tools - Available tools the LLM can call
- * @param config - Agent configuration. Uses `gemini-2.0-flash` by default.
+ * @param config - Agent configuration. Uses `gemini-3.5-flash` by default.
  * @param signal - Optional AbortSignal for request cancellation
  * @returns A promise resolving to an execution plan
  *

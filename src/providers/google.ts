@@ -16,7 +16,7 @@ import { toToolSchema, buildSystemPrompt, buildFallbackSummary } from './utils'
  *
  * @param prompt - The user's natural language input
  * @param tools - Available tools the LLM can call
- * @param config - Agent configuration. Uses `gemini-2.0-flash` by default.
+ * @param config - Agent configuration. Uses `gemini-3.5-flash` by default.
  * @param signal - Optional AbortSignal for request cancellation
  * @returns A promise resolving to an execution plan
  *
@@ -34,7 +34,7 @@ import { toToolSchema, buildSystemPrompt, buildFallbackSummary } from './utils'
  * ```
  */
 export const googleProvider: AgentKProvider = async (prompt, tools, config, signal) => {
-  const model = config.model || 'gemini-2.0-flash'
+  const model = config.model || 'gemini-3.5-flash'
   const endpoint =
     config.endpoint ||
     `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent${config.apiKey ? `?key=${config.apiKey}` : ''}`

@@ -140,7 +140,7 @@ describe('Anthropic provider', () => {
 
     await anthropicProvider('set brightness to 50', testTools, {
       ...baseConfig,
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-sonnet-5',
     })
 
     expect(fetchMock).toHaveBeenCalledOnce()
@@ -148,7 +148,7 @@ describe('Anthropic provider', () => {
     expect(callArgs[0]).toBe('https://api.anthropic.com/v1/messages')
 
     const body = JSON.parse(callArgs[1].body)
-    expect(body.model).toBe('claude-sonnet-4-20250514')
+    expect(body.model).toBe('claude-sonnet-5')
     expect(body.max_tokens).toBe(8192)
     expect(body.messages).toEqual([{ role: 'user', content: 'set brightness to 50' }])
     expect(body.tools).toHaveLength(2)
@@ -303,7 +303,7 @@ describe('Anthropic provider', () => {
     await anthropicProvider('test', testTools, { provider: 'anthropic' })
 
     const body = JSON.parse(fetchMock.mock.calls[0][1].body)
-    expect(body.model).toBe('claude-sonnet-4-20250514')
+    expect(body.model).toBe('claude-sonnet-5')
   })
 
   it('generates fallback summary when text is missing but calls exist', async () => {
@@ -822,7 +822,7 @@ describe('Google provider', () => {
     expect(fetchMock).toHaveBeenCalledOnce()
     const callArgs = fetchMock.mock.calls[0]
     expect(callArgs[0]).toContain('generativelanguage.googleapis.com')
-    expect(callArgs[0]).toContain('gemini-2.0-flash')
+    expect(callArgs[0]).toContain('gemini-3.5-flash')
     expect(callArgs[0]).toContain('key=AIza-test')
 
     const body = JSON.parse(callArgs[1].body)

@@ -109,7 +109,7 @@ const DOCS: Section[] = [
         method: 'POST', path: '/v1/messages', title: 'Create a Message',
         description: 'Send a structured list of input messages with text and/or image content, and the model will generate the next message in the conversation. The Messages API can be used for either single queries or stateless multi-turn conversations.',
         params: [
-          { name: 'model', type: 'string', required: true, description: 'The model that will complete your prompt (e.g. claude-sonnet-4-20250514)' },
+          { name: 'model', type: 'string', required: true, description: 'The model that will complete your prompt (e.g. claude-sonnet-5)' },
           { name: 'max_tokens', type: 'integer', required: true, description: 'The maximum number of tokens to generate before stopping' },
           { name: 'messages', type: 'array', required: true, description: 'Input messages. Each message has a role and content' },
           { name: 'system', type: 'string', required: false, description: 'System prompt. Provides context and instructions' },
@@ -214,7 +214,7 @@ function generateSnippet(endpoint: Endpoint, lang: Language): string {
 client = anthropic.Anthropic()
 
 message = client.messages.create(
-    model="claude-sonnet-4-20250514",
+    model="claude-sonnet-5",
     max_tokens=1024,
     messages=[
         {"role": "user", "content": "Hello, Claude"}
@@ -235,7 +235,7 @@ print(result)`
 const client = new Anthropic();
 
 const message = await client.messages.create({
-  model: "claude-sonnet-4-20250514",
+  model: "claude-sonnet-5",
   max_tokens: 1024,
   messages: [
     { role: "user", content: "Hello, Claude" }
@@ -295,7 +295,7 @@ func main() {
   -H "x-api-key: $ANTHROPIC_API_KEY" \\
   -H "anthropic-version: 2023-06-01" \\
   -d '{
-    "model": "claude-sonnet-4-20250514",
+    "model": "claude-sonnet-5",
     "max_tokens": 1024,
     "messages": [
       {"role": "user", "content": "Hello, Claude"}

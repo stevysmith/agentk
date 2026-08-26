@@ -444,7 +444,7 @@ type AgentKAgentConfig = {
   provider: 'anthropic' | 'openai' | 'google' | 'custom'
   apiKey?: string         // For development only — warns in browser
   endpoint?: string       // Proxy URL for production
-  model?: string          // Defaults: claude-sonnet-4-20250514, gpt-4o, gemini-2.0-flash
+  model?: string          // Defaults: claude-sonnet-5, gpt-4o, gemini-3.5-flash
   systemPrompt?: string   // Override the built-in system prompt
   requireApproval?: boolean  // Show Approval before executing (default: false)
   maxCalls?: number       // Max tool calls per plan
