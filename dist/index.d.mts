@@ -1,8 +1,8 @@
 import * as RadixDialog from '@radix-ui/react-dialog';
 import * as React from 'react';
 import { Primitive } from '@radix-ui/react-primitive';
-import { A as AgentKToolCall, a as AgentKPlan, b as AgentKAgentConfig } from './types-g0NlfvNL.mjs';
-export { c as AgentKProvider } from './types-g0NlfvNL.mjs';
+import { A as AgentKToolCall, a as AgentKPlan, b as AgentKAgentConfig, c as AgentKStepRecord } from './types-DAvepGsu.mjs';
+export { d as AgentKProvider } from './types-DAvepGsu.mjs';
 
 type WebMCPModelContext = {
     registerTool: (tool: any) => void;
@@ -144,6 +144,20 @@ type AgentKToolDef = {
     icon?: React.ReactNode;
     /** Extra keywords used when filtering the palette (not displayed). */
     keywords?: string[];
+    /**
+     * WebMCP tool annotations, forwarded verbatim to `registerTool` (e.g.
+     * `{ readOnlyHint: true }` so an agent knows the tool doesn't change state
+     * and can skip a confirmation). Ignored by the palette itself.
+     */
+    annotations?: WebMCPToolAnnotations;
+};
+/** Annotation hints from the WebMCP spec's `ToolAnnotations` dictionary. */
+type WebMCPToolAnnotations = {
+    /** The tool does not modify state. */
+    readOnlyHint?: boolean;
+    /** The tool's output may contain user-generated or external content. */
+    untrustedContentHint?: boolean;
+    [hint: string]: unknown;
 };
 /**
  * Snapshot of a single tool execution.
@@ -203,6 +217,12 @@ type AgentKInternalState = {
     plan: AgentKPlan | null;
     planIndex: number;
     activityLog: ActivityEntry[];
+    /** What the user originally asked, kept across the steps of one run. */
+    agentIntent: string | null;
+    /** Calls made so far this run, with results — replayed to the model each turn. */
+    transcript: AgentKStepRecord[];
+    /** Provider turns used this run. Increments to re-trigger the planning effect. */
+    planningTurn: number;
 };
 type AgentKContextValue = {
     state: AgentKInternalState;
@@ -1113,4 +1133,4 @@ declare function useAgentK(): AgentKContextValue;
 
 declare function useCmdk<T = any>(selector: (state: State) => T): T;
 
-export { type ActivityEntry, type ActivityFeedProps, type AgentHintProps, AgentKAgentConfig, type AgentKLabels, type AgentKMode, AgentKPlan, AgentKToolCall, type AgentKToolDef, type ApprovalProps, pkg as Command, ActivityFeed as CommandActivityFeed, AgentHint as CommandAgentHint, Approval as CommandApproval, Dialog as CommandDialog, Empty as CommandEmpty, type CommandFilter, CommandGroup, Input as CommandInput, IntentTrigger as CommandIntentTrigger, Item as CommandItem, List as CommandList, Loading as CommandLoading, type CommandProps, Command as CommandRoot, Separator as CommandSeparator, ToolItem as CommandTool, ToolForm as CommandToolForm, ToolResult as CommandToolResult, type DialogProps, type EmptyProps, type GroupProps, type InputProps, type IntentTriggerProps, type ItemProps, type ListProps, type LoadingProps, type SeparatorProps, type ToolExecution, type ToolFormProps, type ToolInputSchema, type ToolItemProps, type ToolResultProps, defaultFilter, useAgentK, useCmdk as useCommandState, useWebMCPRegistration, useWebMCPTools };
+export { type ActivityEntry, type ActivityFeedProps, type AgentHintProps, AgentKAgentConfig, type AgentKLabels, type AgentKMode, AgentKPlan, AgentKStepRecord, AgentKToolCall, type AgentKToolDef, type ApprovalProps, pkg as Command, ActivityFeed as CommandActivityFeed, AgentHint as CommandAgentHint, Approval as CommandApproval, Dialog as CommandDialog, Empty as CommandEmpty, type CommandFilter, CommandGroup, Input as CommandInput, IntentTrigger as CommandIntentTrigger, Item as CommandItem, List as CommandList, Loading as CommandLoading, type CommandProps, Command as CommandRoot, Separator as CommandSeparator, ToolItem as CommandTool, ToolForm as CommandToolForm, ToolResult as CommandToolResult, type DialogProps, type EmptyProps, type GroupProps, type InputProps, type IntentTriggerProps, type ItemProps, type ListProps, type LoadingProps, type SeparatorProps, type ToolExecution, type ToolFormProps, type ToolInputSchema, type ToolItemProps, type ToolResultProps, type WebMCPToolAnnotations, defaultFilter, useAgentK, useCmdk as useCommandState, useWebMCPRegistration, useWebMCPTools };

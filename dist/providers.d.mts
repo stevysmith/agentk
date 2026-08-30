@@ -1,5 +1,5 @@
-import { b as AgentKAgentConfig, c as AgentKProvider } from './types-g0NlfvNL.mjs';
-export { a as AgentKPlan, A as AgentKToolCall, T as ToolDef, d as buildFallbackSummary, e as buildSystemPrompt, t as toToolSchema } from './types-g0NlfvNL.mjs';
+import { b as AgentKAgentConfig, d as AgentKProvider } from './types-DAvepGsu.mjs';
+export { a as AgentKPlan, c as AgentKStepRecord, A as AgentKToolCall, T as ToolDef, e as buildFallbackSummary, f as buildFollowUpPrompt, g as buildSystemPrompt, t as toToolSchema } from './types-DAvepGsu.mjs';
 export { anthropicProvider } from './providers/anthropic.mjs';
 export { openaiProvider } from './providers/openai.mjs';
 export { googleProvider } from './providers/google.mjs';
