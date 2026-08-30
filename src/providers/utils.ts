@@ -108,3 +108,38 @@ Rules:
 export function buildFallbackSummary(callNames: string[]): string {
   return `I'll ${callNames.map((name) => name.replace(/_/g, ' ')).join(' and ')}`
 }
+
+/**
+ * Builds the prompt for a follow-up turn in a multi-step run.
+ *
+ * Deliberately provider-agnostic: the transcript is rendered as text and sent
+ * as an ordinary prompt, so every provider — including a custom `providerFn` —
+ * supports multi-step runs without implementing a message format.
+ *
+ * @param originalPrompt - What the user actually asked for.
+ * @param steps - Calls already made this run, in order, with their results.
+ * @param maxResultChars - Per-result truncation budget. Defaults to 1500.
+ */
+export function buildFollowUpPrompt(
+  originalPrompt: string,
+  steps: Array<{ toolName: string; parameters: Record<string, any>; result?: any; error?: string }>,
+  maxResultChars = 1500,
+): string {
+  const render = (v: unknown) => {
+    const text = typeof v === 'string' ? v : JSON.stringify(v ?? null)
+    return text.length > maxResultChars ? `${text.slice(0, maxResultChars)}… (truncated)` : text
+  }
+  const lines = steps.map((s, i) => {
+    const args = JSON.stringify(s.parameters ?? {})
+    const outcome = s.error ? `ERROR: ${s.error}` : render(s.result)
+    return `${i + 1}. ${s.toolName}(${args})\n   → ${outcome}`
+  })
+  return [
+    `The user asked: "${originalPrompt}"`,
+    '',
+    'Tools called so far, in order, and what they returned:',
+    lines.join('\n'),
+    '',
+    'Continue the task: call more tools if it is not finished. An ERROR above usually says what to do instead — read it and adjust rather than repeating the same call. When the request is satisfied, reply with text only (no tool calls) and tell the user what you did.',
+  ].join('\n')
+}

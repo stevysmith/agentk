@@ -52,12 +52,47 @@ export type AgentKPlan = {
  * }
  * ```
  */
+/**
+ * One completed step in a multi-step agent run: the call that ran and what
+ * came back. Fed to the provider on the next turn so the model can react to
+ * results, recover from errors, and decide when it is finished.
+ */
+export type AgentKStepRecord = {
+  toolName: string
+  parameters: Record<string, any>
+  result?: any
+  error?: string
+}
+
 export type AgentKAgentConfig = {
   /**
    * The LLM provider to use.
    * Use `'custom'` with `providerFn` for custom implementations.
    */
   provider: 'anthropic' | 'openai' | 'google' | 'custom'
+  /**
+   * How many times the provider may be called for one user intent.
+   *
+   * `1` (the default) is single-shot: the model plans once, those calls run,
+   * and the run ends — the model never sees the results. Set it higher to let
+   * the model work in steps: after each plan's calls finish, the results (and
+   * any errors) go back to the model, which either calls more tools or replies
+   * with text to finish. That is what makes "plan a tour, then walk me through
+   * it" work, and it lets the model recover from a tool error instead of
+   * halting on it.
+   *
+   * Left at 1 by default so existing scripted `providerFn` agents — which
+   * return the same plan for the same prompt — cannot loop.
+   * @default 1
+   */
+  maxSteps?: number
+  /**
+   * With `requireApproval`, skip the approval gate for plans whose calls are
+   * all marked `annotations.readOnlyHint`. Reading is free; only changes
+   * (and payments) stop for a human.
+   * @default false
+   */
+  autoApproveReadOnly?: boolean
   /**
    * API key for the selected provider.
    * Warning: Including API keys in client-side code is insecure.

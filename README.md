@@ -103,6 +103,26 @@ Add the `agent` prop and three more primitives to enable natural language intent
 
 When the user types a query that doesn't match any tool, `AgentHint` appears prompting them to press Enter. The query is sent to the LLM, which returns a plan of tool calls. The user reviews and approves the plan in `Approval` before any tools execute.
 
+### Multi-step runs
+
+By default the agent is single-shot: it plans once, those calls run, and the run ends — the model never sees the results. Set `maxSteps` to let it work in steps:
+
+```tsx
+agent={{
+  provider: 'anthropic',
+  endpoint: '/api/agent',
+  requireApproval: true,
+  autoApproveReadOnly: true,  // reads run freely; changes still stop for a human
+  maxSteps: 6,
+}}
+```
+
+After each plan's calls finish, the results — and any errors — go back to the model, which either calls more tools or replies with text to finish. That is what makes *"plan me a tour, then walk me through it"* work instead of stopping after the first lookup, and it lets the model recover from a tool error rather than halting on it: a message like `No ticket for the Van Gogh Room ($0.02). buy_ticket("van-gogh") first.` is exactly the hint it needs.
+
+The follow-up prompt is plain text (the original request plus a transcript of calls and results), so **custom `providerFn` agents get multi-step for free** — no message-format work. `maxSteps` defaults to `1` precisely because scripted providers that return the same plan for the same prompt would otherwise loop.
+
+`autoApproveReadOnly` uses the WebMCP `annotations.readOnlyHint` on your tool definitions: a plan whose calls are all read-only skips the approval gate.
+
 ## Parts and styling
 
 All parts forward props and refs to an appropriate element. Each part has a specific data-attribute that can be used for styling.
@@ -208,6 +228,10 @@ type AgentKToolDef = {
   }
   icon?: React.ReactNode
   keywords?: string[]      // Aliases for fuzzy matching
+  annotations?: {          // WebMCP ToolAnnotations, forwarded to registerTool
+    readOnlyHint?: boolean
+    untrustedContentHint?: boolean
+  }
 }
 ```
 
@@ -418,6 +442,20 @@ function MyComponent() {
   ak.rejectPlan()
 }
 ```
+
+### `useWebMCPRegistration(tools, onToolExecute, options?)`
+
+Registers the same catalog with the browser's WebMCP surface (`document.modelContext`, falling back to `navigator.modelContext`) so in-browser agents can call your tools. Polls briefly if the API arrives late (origin trials, inspector extensions), unregisters on unmount, and returns `{ active }`.
+
+```tsx
+const { active } = useWebMCPRegistration(tools, executeTool, { prefix: 'shop_' })
+```
+
+Each tool is registered with its `name` (prefixed), `label` as `title`, `description`, `inputSchema` and `annotations`. Mark tools that don't change state with `annotations: { readOnlyHint: true }` — agents use it to decide when to ask the user before calling. `execute` results are returned as text content; a thrown error comes back with `isError: true` so the agent can tell a failure from a success that mentions the word "error".
+
+The hook re-registers when the `tools` array changes, so the catalog can follow page state (a `walk` tool only inside a room, `buy_ticket` only for rooms not yet held). Changes are **deferred while a call is in flight**: before Chrome 153, unregistering a tool aborts an execution still running on it, so a tool whose own result changes the catalog would fail its own call. The hook waits for the last in-flight execution to return, lets the browser deliver the result, then applies the change. Keep the array referentially stable between real changes (`useMemo` keyed on the state that matters).
+
+**Host differences it papers over.** ChatGPT's in-app browser exposes only `document.modelContext` (no `navigator.modelContext`) and enforces the spec's object argument for `executeTool`; shipping Chrome exposes both and also accepts a JSON string. agentk registers on whichever exists and sends an object with a string fallback, so the same page works in both. Verified against ChatGPT desktop and Chrome 151.
 
 ### `useWebMCPTools()`
 

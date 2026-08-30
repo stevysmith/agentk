@@ -14,7 +14,7 @@ import { commandScore } from './command-score'
 import { Primitive } from '@radix-ui/react-primitive'
 import { useId } from '@radix-ui/react-id'
 import { composeRefs } from '@radix-ui/react-compose-refs'
-import { resolveProvider, type AgentKAgentConfig, type AgentKPlan, type AgentKToolCall } from './providers'
+import { resolveProvider, buildFollowUpPrompt, type AgentKAgentConfig, type AgentKPlan, type AgentKToolCall, type AgentKStepRecord } from './providers'
 
 // WebMCP type augmentation
 type WebMCPModelContext = {
@@ -81,12 +81,23 @@ function canWebMCPExecute(): boolean {
   return !!(getModelContext()?.executeTool || getModelContextTesting())
 }
 
+/**
+ * Invoke a registered tool through whichever WebMCP surface is present.
+ *
+ * Implementations disagree about the input argument: the spec takes an object
+ * (`executeTool(tool, optional object inputObject)`) and ChatGPT's in-app
+ * browser enforces that, while shipping Chrome also accepts a JSON string. Send
+ * the object, and fall back to the string only if the host rejects it.
+ */
 async function webMCPExecuteTool(name: string, parameters: Record<string, any>): Promise<any> {
-  const mc = getModelContext()
-  if (mc?.executeTool) return mc.executeTool(name, JSON.stringify(parameters))
-  const testing = getModelContextTesting()
-  if (testing) return testing.executeTool(name, JSON.stringify(parameters))
-  throw new Error('WebMCP execute API not available')
+  const target: any = getModelContext()?.executeTool ? getModelContext() : getModelContextTesting()
+  if (!target?.executeTool) throw new Error('WebMCP execute API not available')
+  try {
+    return await target.executeTool(name, parameters)
+  } catch (err: any) {
+    if (/string/i.test(String(err?.message ?? ''))) return target.executeTool(name, JSON.stringify(parameters))
+    throw err
+  }
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -249,6 +260,42 @@ export type AgentKToolDef = {
   icon?: React.ReactNode
   /** Extra keywords used when filtering the palette (not displayed). */
   keywords?: string[]
+  /**
+   * WebMCP tool annotations, forwarded verbatim to `registerTool` (e.g.
+   * `{ readOnlyHint: true }` so an agent knows the tool doesn't change state
+   * and can skip a confirmation). Ignored by the palette itself.
+   */
+  annotations?: WebMCPToolAnnotations
+}
+
+/** Annotation hints from the WebMCP spec's `ToolAnnotations` dictionary. */
+export type WebMCPToolAnnotations = {
+  /** The tool does not modify state. */
+  readOnlyHint?: boolean
+  /** The tool's output may contain user-generated or external content. */
+  untrustedContentHint?: boolean
+  [hint: string]: unknown
+}
+
+/**
+ * Renders a parameter value for the approval panel: readable for scalars,
+ * compact JSON for objects and arrays, and always short enough that one long
+ * argument can't push the Approve button off screen.
+ */
+function formatParamValue(value: unknown, max = 80): string {
+  const text =
+    typeof value === 'string'
+      ? value
+      : value === null || value === undefined
+        ? String(value)
+        : (() => {
+            try {
+              return JSON.stringify(value)
+            } catch {
+              return String(value)
+            }
+          })()
+  return text.length > max ? `${text.slice(0, max - 1)}…` : text
 }
 
 /** Converts snake_case/camelCase tool names to human-readable labels */
@@ -320,6 +367,12 @@ type AgentKInternalState = {
   plan: AgentKPlan | null
   planIndex: number
   activityLog: ActivityEntry[]
+  /** What the user originally asked, kept across the steps of one run. */
+  agentIntent: string | null
+  /** Calls made so far this run, with results — replayed to the model each turn. */
+  transcript: AgentKStepRecord[]
+  /** Provider turns used this run. Increments to re-trigger the planning effect. */
+  planningTurn: number
 }
 
 type AgentKContextValue = {
@@ -531,16 +584,17 @@ type AgentKAction =
   | { type: 'SET_PARAMETER'; name: string; value: any }
   | { type: 'START_EXECUTION'; toolName: string; parameters: Record<string, any> }
   | { type: 'COMPLETE_EXECUTION'; result: any }
-  | { type: 'FAIL_EXECUTION'; error: string }
+  | { type: 'FAIL_EXECUTION'; error: string; continueRun?: boolean }
   | { type: 'SHOW_MESSAGE'; message: string }
   | { type: 'RESET' }
   // Agent mode actions
   | { type: 'START_PLANNING'; prompt: string }
+  | { type: 'CONTINUE_PLANNING' }
   | { type: 'SET_PLAN'; plan: AgentKPlan }
   | { type: 'APPROVE_PLAN' }
   | { type: 'REJECT_PLAN' }
   | { type: 'MODIFY_PLAN_CALL'; index: number; parameters: Record<string, any> }
-  | { type: 'ADVANCE_PLAN'; result?: any }
+  | { type: 'ADVANCE_PLAN'; result?: any; continueRun?: boolean }
   | { type: 'LOG_ACTIVITY'; entry: Omit<ActivityEntry, 'id' | 'timestamp'> }
 
 let activityId = 0
@@ -555,6 +609,9 @@ const initialAgentKState: AgentKInternalState = {
   plan: null,
   planIndex: 0,
   activityLog: [],
+  agentIntent: null,
+  transcript: [],
+  planningTurn: 0,
 }
 
 function agentKReducer(state: AgentKInternalState, action: AgentKAction): AgentKInternalState {
@@ -600,17 +657,28 @@ function agentKReducer(state: AgentKInternalState, action: AgentKAction): AgentK
         mode: 'result',
         execution: state.execution ? { ...state.execution, result: action.result } : null,
       }
-    case 'FAIL_EXECUTION':
+    case 'FAIL_EXECUTION': {
+      const failed = state.execution
+      const transcript = failed?.toolName
+        ? [...state.transcript, { toolName: failed.toolName, parameters: failed.parameters, error: action.error }]
+        : state.transcript
+      // In a multi-step run a tool error is information, not the end: hand it
+      // back to the model so it can read the message and try something else.
+      if (action.continueRun) {
+        return { ...state, mode: 'planning' as AgentKMode, plan: null, planIndex: 0, transcript, planningTurn: state.planningTurn + 1 }
+      }
       return {
         ...state,
         mode: 'result',
+        transcript,
         // A failure during planning (before any tool ran) has no execution to
         // attach the error to — synthesize one so the error is still shown in
         // the result panel instead of leaving a blank dialog.
-        execution: state.execution
-          ? { ...state.execution, error: action.error }
+        execution: failed
+          ? { ...failed, error: action.error }
           : { toolName: '', parameters: {}, error: action.error, startedAt: Date.now() },
       }
+    }
     case 'SHOW_MESSAGE':
       // The model replied with text and no tool call (e.g. a clarification).
       // Surface it in the result panel instead of silently dropping it.
@@ -635,9 +703,16 @@ function agentKReducer(state: AgentKInternalState, action: AgentKAction): AgentK
         pendingPrompt: action.prompt,
         plan: null,
         planIndex: 0,
+        agentIntent: action.prompt,
+        transcript: [],
+        planningTurn: 1,
         activityLog: [...state.activityLog, entry],
       }
     }
+    case 'CONTINUE_PLANNING':
+      // Another turn for the same intent: the model sees `transcript` and
+      // decides whether to call more tools or finish.
+      return { ...state, mode: 'planning' as AgentKMode, plan: null, planIndex: 0, planningTurn: state.planningTurn + 1 }
     case 'SET_PLAN': {
       const entry: ActivityEntry = {
         id: `act-${++activityId}`,
@@ -693,13 +768,22 @@ function agentKReducer(state: AgentKInternalState, action: AgentKAction): AgentK
     }
     case 'ADVANCE_PLAN': {
       if (!state.plan) return { ...state, mode: 'result' as AgentKMode }
+      const done = state.plan.calls[state.planIndex]
+      const transcript = done
+        ? [...state.transcript, { toolName: done.toolName, parameters: done.parameters, result: action.result }]
+        : state.transcript
       const nextIndex = state.planIndex + 1
       if (nextIndex >= state.plan.calls.length) {
+        // Plan exhausted. Either hand the results back for another turn, or end the run.
+        if (action.continueRun) {
+          return { ...state, mode: 'planning' as AgentKMode, plan: null, planIndex: 0, transcript, planningTurn: state.planningTurn + 1 }
+        }
         // All calls done — store the last tool's result on the execution
         return {
           ...state,
           mode: 'result' as AgentKMode,
           planIndex: nextIndex,
+          transcript,
           execution: state.execution ? { ...state.execution, result: action.result } : null,
         }
       }
@@ -717,6 +801,7 @@ function agentKReducer(state: AgentKInternalState, action: AgentKAction): AgentK
         ...state,
         mode: 'executing' as AgentKMode,
         planIndex: nextIndex,
+        transcript,
         execution: {
           toolName: nextCall.toolName,
           parameters: nextCall.parameters,
@@ -921,6 +1006,11 @@ const Command = React.forwardRef<HTMLDivElement, CommandProps>((props, forwarded
         }
       }
 
+      // Does this run get another provider turn after the current plan?
+      const maxSteps = Math.max(1, agent?.maxSteps ?? 1)
+      const isLastCall = !akState.plan || akState.planIndex >= akState.plan.calls.length - 1
+      const continueRun = isPlanExecution && maxSteps > 1 && akState.planningTurn < maxSteps && isLastCall
+
       const doExecute = async () => {
         try {
           if (signal.aborted) return
@@ -939,7 +1029,7 @@ const Command = React.forwardRef<HTMLDivElement, CommandProps>((props, forwarded
               type: 'LOG_ACTIVITY',
               entry: { type: 'tool_complete', toolName, result, message: `${toolName} completed` },
             })
-            akDispatch({ type: 'ADVANCE_PLAN', result })
+            akDispatch({ type: 'ADVANCE_PLAN', result, continueRun })
           } else {
             akDispatch({ type: 'COMPLETE_EXECUTION', result })
           }
@@ -955,7 +1045,9 @@ const Command = React.forwardRef<HTMLDivElement, CommandProps>((props, forwarded
               type: 'LOG_ACTIVITY',
               entry: { type: 'tool_error', toolName, error: errorMsg, message: `${toolName} failed: ${errorMsg}` },
             })
-            akDispatch({ type: 'FAIL_EXECUTION', error: errorMsg })
+            // Multi-step: give the model the error so it can recover. The
+            // remaining calls of this plan are dropped either way.
+            akDispatch({ type: 'FAIL_EXECUTION', error: errorMsg, continueRun: isPlanExecution && maxSteps > 1 && akState.planningTurn < maxSteps })
           } else {
             akDispatch({ type: 'FAIL_EXECUTION', error: errorMsg })
           }
@@ -983,22 +1075,28 @@ const Command = React.forwardRef<HTMLDivElement, CommandProps>((props, forwarded
     }
   }, [akState.mode, akState.execution?._seq])
 
-  // Planning effect — call LLM when entering 'planning' mode
-  const lastPlanningAt = React.useRef<number>(0)
+  // Planning effect — call LLM when entering 'planning' mode.
+  // Keyed on planningTurn, so each turn of a multi-step run plans exactly once
+  // (and React strict-mode's double invoke is absorbed).
+  const lastPlanningTurn = React.useRef<number>(0)
 
   React.useEffect(() => {
     if (akState.mode !== 'planning' || !akState.pendingPrompt || !agent) return
-
-    const timestamp = Date.now()
-    if (timestamp - lastPlanningAt.current < 100) return
-    lastPlanningAt.current = timestamp
+    if (akState.planningTurn <= lastPlanningTurn.current) return
+    lastPlanningTurn.current = akState.planningTurn
 
     const doPlanning = async () => {
       try {
         const provider = resolveProvider(agent)
         // Collect all available tools: prop-based + WebMCP-discovered
         const allTools = tools || []
-        const plan = await provider(akState.pendingPrompt!, allTools, agent)
+        // First turn: the user's words. Later turns: the same request plus a
+        // transcript of what ran and what it returned.
+        const prompt =
+          akState.transcript.length > 0
+            ? buildFollowUpPrompt(akState.agentIntent ?? akState.pendingPrompt!, akState.transcript)
+            : akState.pendingPrompt!
+        const plan = await provider(prompt, allTools, agent)
 
         if (plan.calls.length === 0) {
           // LLM responded with text only, no tool calls. Surface that text
@@ -1021,8 +1119,13 @@ const Command = React.forwardRef<HTMLDivElement, CommandProps>((props, forwarded
         akDispatch({ type: 'SET_PLAN', plan })
         onAgentPlan?.(plan)
 
-        // Auto-execute if approval not required (default: auto-approve)
-        if (!agent.requireApproval) {
+        // Auto-execute if approval not required (default: auto-approve), or if
+        // every call in this plan is annotated read-only and the app opted into
+        // letting reads through. Anything that changes state still stops.
+        const allReadOnly =
+          !!agent.autoApproveReadOnly &&
+          plan.calls.every((c) => (tools || []).find((t) => t.name === c.toolName)?.annotations?.readOnlyHint === true)
+        if (!agent.requireApproval || allReadOnly) {
           akDispatch({ type: 'APPROVE_PLAN' })
           onAgentApprove?.(plan)
         }
@@ -1036,7 +1139,8 @@ const Command = React.forwardRef<HTMLDivElement, CommandProps>((props, forwarded
       }
     }
     doPlanning()
-  }, [akState.mode, akState.pendingPrompt])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [akState.mode, akState.pendingPrompt, akState.planningTurn])
 
   // Check WebMCP availability
   const webmcpAvailable = React.useMemo(() => {
@@ -2591,7 +2695,8 @@ const Approval = React.forwardRef<HTMLDivElement, ApprovalProps>((props, ref) =>
                           <span data-agentk-approval-call-params="">
                             {Object.entries(call.parameters).map(([k, v]) => (
                               <span key={k} data-agentk-approval-param="">
-                                <span data-agentk-approval-param-value="">{String(v)}</span>
+                                <span data-agentk-approval-param-name="">{k}=</span>
+                                <span data-agentk-approval-param-value="">{formatParamValue(v)}</span>
                               </span>
                             ))}
                           </span>
@@ -2764,6 +2869,23 @@ export function useWebMCPRegistration(
   const execRef = React.useRef(onToolExecute)
   execRef.current = onToolExecute
   const [active, setActive] = React.useState(false)
+  // Surface changes are deferred while a call is in flight: before Chrome 153,
+  // unregistering a tool aborts an execution still running on it, so a tool
+  // whose result changes the catalog (buy → enter_wing appears) would fail
+  // its own call. Deferred work runs, in order, once the last call returns.
+  const inFlight = React.useRef(0)
+  const deferred = React.useRef<Array<() => void>>([])
+  const flushRef = React.useRef<() => void>(() => {})
+  flushRef.current = () => {
+    if (inFlight.current > 0) return
+    const work = deferred.current
+    deferred.current = []
+    for (const fn of work) fn()
+  }
+  const enqueue = (fn: () => void) => {
+    deferred.current.push(fn)
+    flushRef.current()
+  }
 
   React.useEffect(() => {
     if (typeof window === 'undefined' || tools.length === 0) return
@@ -2785,15 +2907,24 @@ export function useWebMCPRegistration(
             mc.registerTool(
               {
                 name,
+                ...(tool.label ? { title: tool.label } : {}),
                 description: tool.description,
                 ...(tool.inputSchema ? { inputSchema: tool.inputSchema } : {}),
+                ...(tool.annotations ? { annotations: tool.annotations } : {}),
                 execute: async (params: Record<string, any>) => {
+                  inFlight.current += 1
                   try {
                     const result = await execRef.current(tool.name, params)
                     const text = typeof result === 'string' ? result : JSON.stringify(result ?? { ok: true })
                     return { content: [{ type: 'text', text }] }
                   } catch (err: any) {
-                    return { content: [{ type: 'text', text: `Error: ${err?.message ?? String(err)}` }] }
+                    // isError lets the agent tell a failed call from a successful one
+                    // that happens to mention the word "error".
+                    return { content: [{ type: 'text', text: `Error: ${err?.message ?? String(err)}` }], isError: true }
+                  } finally {
+                    inFlight.current -= 1
+                    // let the browser deliver this result before the surface changes
+                    if (inFlight.current === 0 && deferred.current.length) setTimeout(() => flushRef.current(), 30)
                   }
                 },
               },
@@ -2808,34 +2939,28 @@ export function useWebMCPRegistration(
       return true
     }
 
-    if (!tryRegister()) {
-      // The API can arrive after mount (origin-trial timing, inspector
-      // extensions injecting their surface). Poll briefly rather than
-      // giving up at first paint.
-      const startedAt = Date.now()
-      const iv = window.setInterval(() => {
-        if (cancelled || Date.now() - startedAt > maxWaitMs) {
-          window.clearInterval(iv)
-          return
-        }
-        if (tryRegister()) window.clearInterval(iv)
-      }, retryMs)
-      return () => {
-        cancelled = true
-        window.clearInterval(iv)
-        controller.abort()
-        if (registered?.mc?.unregisterTool) {
-          for (const n of registered.names) { try { registered.mc.unregisterTool(n) } catch {} }
-        }
-      }
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const started = Date.now()
+    const attempt = () => {
+      if (cancelled) return
+      if (tryRegister()) return
+      if (Date.now() - started < maxWaitMs) timer = setTimeout(attempt, retryMs)
     }
+    enqueue(attempt)
 
     return () => {
       cancelled = true
-      controller.abort()
-      if (registered?.mc?.unregisterTool) {
-        for (const n of registered.names) { try { registered.mc.unregisterTool(n) } catch {} }
-      }
+      if (timer) clearTimeout(timer)
+      enqueue(() => {
+        controller.abort()
+        if (registered) {
+          for (const n of registered.names) {
+            try {
+              registered.mc.unregisterTool?.(n)
+            } catch {}
+          }
+        }
+      })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tools])
@@ -2956,7 +3081,7 @@ export { AgentHint as CommandAgentHint }
 export { IntentTrigger as CommandIntentTrigger }
 
 // Re-export provider types
-export type { AgentKAgentConfig, AgentKPlan, AgentKToolCall, AgentKProvider } from './providers'
+export type { AgentKAgentConfig, AgentKPlan, AgentKToolCall, AgentKProvider, AgentKStepRecord } from './providers'
 
 // Re-export types
 export type {
