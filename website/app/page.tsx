@@ -10,6 +10,8 @@ import DevOpsTheme from '../components/cmdk/devops'
 import ShopTheme from '../components/cmdk/shop'
 import { showcaseStyles } from '../components/styles'
 import React from 'react'
+// the badge reads the published version straight from the package, so a release can't leave it stale
+import { version } from '../../package.json'
 
 // ─────────────────────────────────────────────────────────
 // Lightweight JSX/JS syntax highlighter (no deps)
@@ -487,7 +489,7 @@ export default function ShowcasePage() {
             >
               <div className="title-row">
                 <h1 className="page-title">agentk</h1>
-                <span className="version-badge">v0.4.1</span>
+                <span className="version-badge">v{version}</span>
               </div>
               <p className="tagline">The command palette<br />for the agentic web.</p>
               <p className="tagline-sub"><strong>A React component</strong>: define your capabilities once as JSON&nbsp;Schema tools. People get the palette; AI agents get a WebMCP endpoint &mdash; one definition, two ways in.</p>
