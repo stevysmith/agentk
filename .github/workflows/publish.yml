@@ -1,0 +1,60 @@
+# Publishes @stevysmith/agentk to npm from a version tag, using npm's trusted
+# publishing (OIDC) — no NPM_TOKEN anywhere, and npm attaches a provenance
+# attestation to the release.
+#
+# One-time setup on npmjs.com: the package's Settings -> Trusted Publisher,
+# with organization/user `stevysmith`, repository `agentk`, workflow filename
+# `publish.yml`.
+#
+# Normal release: push a `vX.Y.Z` tag. The dispatch input exists so a tag that
+# was already pushed (before this workflow existed) can still be published.
+name: publish
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing tag to publish, e.g. v0.7.0'
+        required: true
+
+permissions:
+  contents: read
+  id-token: write   # lets the runner mint the OIDC token npm checks
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'          # trusted publishing needs >= 22.14
+          registry-url: 'https://registry.npmjs.org'
+
+      # setup-node pins an npm that may predate OIDC support (>= 11.5.1).
+      - run: npm install -g npm@latest
+
+      # Not `npm ci`: package-lock.json is stale (pnpm is the real installer),
+      # and the published artifact is the committed dist/, not a CI build.
+      - run: npm install --no-audit --no-fund
+
+      - run: npm test
+
+      # A tag that disagrees with package.json would publish the wrong version
+      # under the right name — cheaper to fail here than to unpublish.
+      - name: Tag must match package.json
+        run: |
+          tag="${{ inputs.tag || github.ref_name }}"
+          pkg="v$(node -p "require('./package.json').version")"
+          if [ "$tag" != "$pkg" ]; then
+            echo "tag $tag does not match package.json $pkg" >&2
+            exit 1
+          fi
+          echo "publishing $pkg"
+
+      - run: npm publish
