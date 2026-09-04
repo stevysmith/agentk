@@ -4,7 +4,25 @@ Notable changes per published release. Versions link to the tag; anything not
 listed here is site or docs work that doesn't change the package.
 
 The jump from 0.4.1 to 0.6.2 is real — 0.5.x was never cut. Published versions
-are 0.3.0, 0.3.1, 0.4.0, 0.4.1 and 0.6.2.
+are 0.3.0, 0.3.1, 0.4.0, 0.4.1, 0.6.2 and 0.7.0.
+
+## [0.7.0] — 2026-09-04
+
+`consequentialHint` landed in the WebMCP spec's `ToolAnnotations`
+([issue #176](https://github.com/webmachinelearning/webmcp/issues/176), default
+`false`): significant, real-world or non-reversible actions — paying, sending,
+booking. The hint already reached `registerTool`, since annotations forward
+verbatim; what was missing was agentk acting on it.
+
+- `consequentialHint` is named in `WebMCPToolAnnotations`, with the spec's wording.
+- `autoApproveReversible` runs writes that are *not* marked consequential — the
+  middle tier read-vs-write misses, where drafting an email is a write but
+  stopping for it is noise.
+- A consequential call is never waved through by either auto-approve flag. Only
+  `requireApproval: false` skips it: an explicit off switch is the developer's to
+  keep. A plan is judged whole — one consequential call and all of it waits.
+- Dropped seven stale `dist/types-*` chunk pairs that had accumulated across
+  releases and were shipping to npm as dead weight.
 
 ## [0.6.2] — 2026-08-30
 
@@ -66,6 +84,7 @@ rather than theory.
 First public release under `@stevysmith/agentk`: the command palette, agent
 mode, and the WebMCP primitives, published with public access.
 
+[0.7.0]: https://github.com/stevysmith/agentk/releases/tag/v0.7.0
 [0.6.2]: https://github.com/stevysmith/agentk/releases/tag/v0.6.2
 [0.4.1]: https://github.com/stevysmith/agentk/releases/tag/v0.4.1
 [0.4.0]: https://github.com/stevysmith/agentk/releases/tag/v0.4.0
