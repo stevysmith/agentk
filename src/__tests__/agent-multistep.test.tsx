@@ -7,6 +7,7 @@ const TOOLS: AgentKToolDef[] = [
   { name: 'list_rooms', description: 'List rooms', annotations: { readOnlyHint: true } },
   { name: 'buy_ticket', description: 'Buy a ticket', inputSchema: { type: 'object', properties: { room: { type: 'string' } } } },
   { name: 'enter_room', description: 'Enter a room', inputSchema: { type: 'object', properties: { room: { type: 'string' } } } },
+  { name: 'pay', description: 'Pay for admission', annotations: { consequentialHint: true } },
 ]
 
 function renderPalette(props: Partial<React.ComponentProps<typeof Command>> = {}) {
@@ -139,6 +140,52 @@ describe('autoApproveReadOnly', () => {
     // state-changing: waits for a human
     await waitFor(() => expect(screen.getByText('Approve')).toBeInTheDocument())
     expect(onToolExecute).not.toHaveBeenCalledWith('buy_ticket', expect.anything(), expect.anything())
+  })
+})
+
+describe('autoApproveReversible', () => {
+  it('lets an unannotated write run but still stops for a consequential one', async () => {
+    const providerFn = vi
+      .fn<(p: string) => Promise<AgentKPlan>>()
+      .mockResolvedValueOnce({ summary: 'Entering', calls: [{ toolName: 'enter_room', parameters: { room: 'blue' } }] })
+      .mockResolvedValueOnce({ summary: 'Paying', calls: [{ toolName: 'pay', parameters: {} }] })
+    const onToolExecute = vi.fn(async () => ({ ok: true }))
+
+    const agent = { provider: 'custom' as const, providerFn, requireApproval: true, autoApproveReversible: true }
+    renderPalette({ onToolExecute, agent })
+    await ask('take me to the blue room')
+
+    // a write with no consequential hint: the reversible middle, runs freely
+    await waitFor(() => expect(onToolExecute).toHaveBeenCalledWith('enter_room', { room: 'blue' }, expect.anything()))
+    expect(screen.queryByText('Approve')).not.toBeInTheDocument()
+
+    cleanup()
+    renderPalette({ onToolExecute, agent })
+    await ask('pay for me')
+
+    // consequential: waits for a human even though reversible writes are waved through
+    await waitFor(() => expect(screen.getByText('Approve')).toBeInTheDocument())
+    expect(onToolExecute).not.toHaveBeenCalledWith('pay', expect.anything(), expect.anything())
+  })
+
+  it('does not let a consequential call ride along on autoApproveReadOnly', async () => {
+    const providerFn = vi.fn(async (): Promise<AgentKPlan> => ({
+      summary: 'Looking, then paying',
+      calls: [
+        { toolName: 'list_rooms', parameters: {} },
+        { toolName: 'pay', parameters: {} },
+      ],
+    }))
+    const onToolExecute = vi.fn(async () => ({ ok: true }))
+
+    renderPalette({
+      onToolExecute,
+      agent: { provider: 'custom', providerFn, requireApproval: true, autoApproveReadOnly: true, autoApproveReversible: true },
+    })
+    await ask('look around and pay')
+
+    await waitFor(() => expect(screen.getByText('Approve')).toBeInTheDocument())
+    expect(onToolExecute).not.toHaveBeenCalled()
   })
 })
 

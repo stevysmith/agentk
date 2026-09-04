@@ -1,8 +1,8 @@
 import * as RadixDialog from '@radix-ui/react-dialog';
 import * as React from 'react';
 import { Primitive } from '@radix-ui/react-primitive';
-import { A as AgentKToolCall, a as AgentKPlan, b as AgentKAgentConfig, c as AgentKStepRecord } from './types-DAvepGsu.js';
-export { d as AgentKProvider } from './types-DAvepGsu.js';
+import { A as AgentKToolCall, a as AgentKPlan, b as AgentKAgentConfig, c as AgentKStepRecord } from './types-CL7TWHvJ.js';
+export { d as AgentKProvider } from './types-CL7TWHvJ.js';
 
 type WebMCPModelContext = {
     registerTool: (tool: any) => void;
@@ -157,6 +157,14 @@ type WebMCPToolAnnotations = {
     readOnlyHint?: boolean;
     /** The tool's output may contain user-generated or external content. */
     untrustedContentHint?: boolean;
+    /**
+     * The tool does something significant, real-world or non-reversible —
+     * booking a flight, transferring money, sending a message. Off by default:
+     * most tools just do what they say, so the hint stays meaningful only if
+     * it is the exception. Never auto-approved by `autoApproveReadOnly` or
+     * `autoApproveReversible`.
+     */
+    consequentialHint?: boolean;
     [hint: string]: unknown;
 };
 /**

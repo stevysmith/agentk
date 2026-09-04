@@ -87,6 +87,23 @@ declare function buildSystemPrompt(tools: ToolDef[]): string;
  * ```
  */
 declare function buildFallbackSummary(callNames: string[]): string;
+/**
+ * Builds the prompt for a follow-up turn in a multi-step run.
+ *
+ * Deliberately provider-agnostic: the transcript is rendered as text and sent
+ * as an ordinary prompt, so every provider — including a custom `providerFn` —
+ * supports multi-step runs without implementing a message format.
+ *
+ * @param originalPrompt - What the user actually asked for.
+ * @param steps - Calls already made this run, in order, with their results.
+ * @param maxResultChars - Per-result truncation budget. Defaults to 1500.
+ */
+declare function buildFollowUpPrompt(originalPrompt: string, steps: Array<{
+    toolName: string;
+    parameters: Record<string, any>;
+    result?: any;
+    error?: string;
+}>, maxResultChars?: number): string;
 
 /**
  * Represents a single tool call planned by an LLM provider.
@@ -126,12 +143,23 @@ type AgentKPlan = {
  * const config: AgentKAgentConfig = {
  *   provider: 'anthropic',
  *   apiKey: 'sk-...',
- *   model: 'claude-sonnet-4-20250514',
+ *   model: 'claude-sonnet-5',
  *   stream: true,
  *   timeout: 15000,
  * }
  * ```
  */
+/**
+ * One completed step in a multi-step agent run: the call that ran and what
+ * came back. Fed to the provider on the next turn so the model can react to
+ * results, recover from errors, and decide when it is finished.
+ */
+type AgentKStepRecord = {
+    toolName: string;
+    parameters: Record<string, any>;
+    result?: any;
+    error?: string;
+};
 type AgentKAgentConfig = {
     /**
      * The LLM provider to use.
@@ -139,11 +167,50 @@ type AgentKAgentConfig = {
      */
     provider: 'anthropic' | 'openai' | 'google' | 'custom';
     /**
+     * How many times the provider may be called for one user intent.
+     *
+     * `1` (the default) is single-shot: the model plans once, those calls run,
+     * and the run ends — the model never sees the results. Set it higher to let
+     * the model work in steps: after each plan's calls finish, the results (and
+     * any errors) go back to the model, which either calls more tools or replies
+     * with text to finish. That is what makes "plan a tour, then walk me through
+     * it" work, and it lets the model recover from a tool error instead of
+     * halting on it.
+     *
+     * Left at 1 by default so existing scripted `providerFn` agents — which
+     * return the same plan for the same prompt — cannot loop.
+     * @default 1
+     */
+    maxSteps?: number;
+    /**
+     * With `requireApproval`, skip the approval gate for plans whose calls are
+     * all marked `annotations.readOnlyHint`. Reading is free; only changes
+     * (and payments) stop for a human.
+     * @default false
+     */
+    autoApproveReadOnly?: boolean;
+    /**
+     * With `requireApproval`, also skip the gate for writes that are not marked
+     * `annotations.consequentialHint` — the reversible middle, where read vs.
+     * write is too blunt a line: drafting an email is a write, sending it is not
+     * the same thing. A call annotated consequential always stops, whichever
+     * auto-approve is on.
+     * @default false
+     */
+    autoApproveReversible?: boolean;
+    /**
      * API key for the selected provider.
      * Warning: Including API keys in client-side code is insecure.
      * Use the `endpoint` field to proxy through your server instead.
      */
     apiKey?: string;
+    /**
+     * Acknowledge that an API key is intentionally used in the browser
+     * (e.g. a bring-your-own-key UI where the key is the end user's own and
+     * never leaves their machine). Suppresses the client-side key warning.
+     * @default false
+     */
+    dangerouslyAllowBrowserKey?: boolean;
     /**
      * Custom API endpoint URL. Overrides the provider's default endpoint.
      * Use this to proxy requests through your own server.
@@ -151,9 +218,9 @@ type AgentKAgentConfig = {
     endpoint?: string;
     /**
      * Model identifier to use. Each provider has a sensible default:
-     * - Anthropic: `'claude-sonnet-4-20250514'`
+     * - Anthropic: `'claude-sonnet-5'`
      * - OpenAI: `'gpt-4o'`
-     * - Google: `'gemini-2.0-flash'`
+     * - Google: `'gemini-3.5-flash'`
      * @default Provider-specific default
      */
     model?: string;
@@ -171,6 +238,14 @@ type AgentKAgentConfig = {
      * Maximum number of tool calls allowed in a single plan.
      */
     maxCalls?: number;
+    /**
+     * Maximum tokens the model may generate in its response. Important when the
+     * model fills a large tool argument (e.g. a full HTML document): too low a
+     * cap truncates the tool call and its arguments arrive empty. Each model has
+     * its own ceiling, so set this per provider.
+     * @default 8192 (Anthropic; OpenAI and Google use the model default if unset)
+     */
+    maxTokens?: number;
     /**
      * Custom provider function. Required when `provider` is `'custom'`.
      */
@@ -195,6 +270,14 @@ type AgentKAgentConfig = {
      * @param error - The error that occurred
      */
     onProviderError?: (error: Error) => void;
+    /**
+     * Progress callback fired while a streaming response is being received
+     * (requires `stream: true`). Reports the cumulative number of characters
+     * generated so far, so a UI can show live progress during a long generation.
+     *
+     * @param chars - Total characters streamed so far
+     */
+    onProgress?: (chars: number) => void;
 };
 /**
  * A function that takes a prompt and tools, calls an LLM, and returns a plan.
@@ -220,4 +303,4 @@ type AgentKAgentConfig = {
  */
 type AgentKProvider = (prompt: string, tools: ToolDef[], config: AgentKAgentConfig, signal?: AbortSignal) => Promise<AgentKPlan>;
 
-export { type AgentKToolCall as A, type ToolDef as T, type AgentKPlan as a, type AgentKAgentConfig as b, type AgentKProvider as c, buildFallbackSummary as d, buildSystemPrompt as e, toToolSchema as t };
+export { type AgentKToolCall as A, type ToolDef as T, type AgentKPlan as a, type AgentKAgentConfig as b, type AgentKStepRecord as c, type AgentKProvider as d, buildFallbackSummary as e, buildFollowUpPrompt as f, buildSystemPrompt as g, toToolSchema as t };

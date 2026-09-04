@@ -274,6 +274,14 @@ export type WebMCPToolAnnotations = {
   readOnlyHint?: boolean
   /** The tool's output may contain user-generated or external content. */
   untrustedContentHint?: boolean
+  /**
+   * The tool does something significant, real-world or non-reversible —
+   * booking a flight, transferring money, sending a message. Off by default:
+   * most tools just do what they say, so the hint stays meaningful only if
+   * it is the exception. Never auto-approved by `autoApproveReadOnly` or
+   * `autoApproveReversible`.
+   */
+  consequentialHint?: boolean
   [hint: string]: unknown
 }
 
@@ -1120,12 +1128,18 @@ const Command = React.forwardRef<HTMLDivElement, CommandProps>((props, forwarded
         onAgentPlan?.(plan)
 
         // Auto-execute if approval not required (default: auto-approve), or if
-        // every call in this plan is annotated read-only and the app opted into
-        // letting reads through. Anything that changes state still stops.
+        // the app opted into letting this class of call through. Three tiers,
+        // from the WebMCP annotations: read-only, the reversible middle
+        // (a write the user would not think twice about — drafting, not
+        // sending), and consequential. A consequential call is never waved
+        // through by either opt-in; only turning approval off entirely skips it.
+        const annotationsFor = (name: string) => (tools || []).find((t) => t.name === name)?.annotations
+        const noneConsequential = plan.calls.every((c) => annotationsFor(c.toolName)?.consequentialHint !== true)
         const allReadOnly =
           !!agent.autoApproveReadOnly &&
-          plan.calls.every((c) => (tools || []).find((t) => t.name === c.toolName)?.annotations?.readOnlyHint === true)
-        if (!agent.requireApproval || allReadOnly) {
+          plan.calls.every((c) => annotationsFor(c.toolName)?.readOnlyHint === true)
+        const allReversible = !!agent.autoApproveReversible && noneConsequential
+        if (!agent.requireApproval || ((allReadOnly || allReversible) && noneConsequential)) {
           akDispatch({ type: 'APPROVE_PLAN' })
           onAgentApprove?.(plan)
         }

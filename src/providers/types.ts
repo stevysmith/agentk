@@ -94,6 +94,15 @@ export type AgentKAgentConfig = {
    */
   autoApproveReadOnly?: boolean
   /**
+   * With `requireApproval`, also skip the gate for writes that are not marked
+   * `annotations.consequentialHint` — the reversible middle, where read vs.
+   * write is too blunt a line: drafting an email is a write, sending it is not
+   * the same thing. A call annotated consequential always stops, whichever
+   * auto-approve is on.
+   * @default false
+   */
+  autoApproveReversible?: boolean
+  /**
    * API key for the selected provider.
    * Warning: Including API keys in client-side code is insecure.
    * Use the `endpoint` field to proxy through your server instead.

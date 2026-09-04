@@ -121,7 +121,24 @@ After each plan's calls finish, the results — and any errors — go back to th
 
 The follow-up prompt is plain text (the original request plus a transcript of calls and results), so **custom `providerFn` agents get multi-step for free** — no message-format work. `maxSteps` defaults to `1` precisely because scripted providers that return the same plan for the same prompt would otherwise loop.
 
-`autoApproveReadOnly` uses the WebMCP `annotations.readOnlyHint` on your tool definitions: a plan whose calls are all read-only skips the approval gate.
+### What stops for a human
+
+Read vs. write is a blunt line — drafting an email is a write, and stopping for
+it is noise; sending it is not the same thing at all. agentk reads three tiers
+off your WebMCP annotations:
+
+| annotation on the tool | what it means | runs without asking when |
+|---|---|---|
+| `readOnlyHint: true` | doesn't change anything | `autoApproveReadOnly` |
+| neither | a write you wouldn't think twice about | `autoApproveReversible` |
+| `consequentialHint: true` | significant, real-world or non-reversible — paying, sending, booking | never, under either flag |
+
+A plan is judged as a whole: one consequential call and the whole plan waits.
+Only `requireApproval: false` — the app saying it wants no gate at all — skips a
+consequential call, because an explicit off switch is the developer's to keep.
+
+`consequentialHint` is off by default, per the WebMCP spec: most tools just do
+what they say, and the hint only stays meaningful while it marks the exception.
 
 ## Parts and styling
 
