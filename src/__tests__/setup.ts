@@ -13,6 +13,21 @@ if (typeof globalThis.ResizeObserver === 'undefined') {
   }
 }
 
+// jsdom ships no PointerEvent, so a fired pointer event reaches React without
+// `pointerType` — which is exactly the field the touch guards read.
+if (typeof globalThis.PointerEvent === 'undefined') {
+  class PointerEventPolyfill extends MouseEvent {
+    pointerType: string
+    pointerId: number
+    constructor(type: string, params: any = {}) {
+      super(type, params)
+      this.pointerType = params.pointerType ?? ''
+      this.pointerId = params.pointerId ?? 0
+    }
+  }
+  globalThis.PointerEvent = PointerEventPolyfill as any
+}
+
 // Polyfill Element.scrollIntoView for jsdom
 if (typeof Element.prototype.scrollIntoView === 'undefined') {
   Element.prototype.scrollIntoView = function () {}

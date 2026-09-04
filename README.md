@@ -140,6 +140,54 @@ consequential call, because an explicit off switch is the developer's to keep.
 `consequentialHint` is off by default, per the WebMCP spec: most tools just do
 what they say, and the hint only stays meaningful while it marks the exception.
 
+## On a phone
+
+WebMCP is committed to all six Blink platforms — Android and Android WebView
+included — so the palette has to work under a thumb, not just a cursor. Three
+things follow, two of them handled for you.
+
+**A finger scrolling a list no longer re-selects it.** `onPointerMove` still
+moves the selection for a mouse, and ignores `pointerType === 'touch'`, where a
+pointer travelling down the list is a scroll and the row under it is incidental.
+
+**`autoFocus` is ignored on a touch device**, because focusing the input opens
+the on-screen keyboard over the list the palette just opened to show. Pass
+`autoFocusOnTouch` when the keyboard *is* the point — a search-first palette
+where nobody browses:
+
+```tsx
+<Command.Input autoFocus autoFocusOnTouch placeholder="Search…" />
+```
+
+**The root carries `data-touch` when the primary pointer is coarse**, so the
+touch layout keys off the pointer rather than a viewport width that says nothing
+about how the page is being operated. A tablet with a keyboard is not a phone,
+and a narrow desktop window is not a thumb.
+
+The library ships no CSS, so the layout is yours. The one we'd start from is a
+bottom sheet — the input sits above the keyboard and results grow upward, so the
+row being read is never the row about to be covered:
+
+```css
+[cmdk-root][data-touch] {
+  position: fixed;
+  inset: auto 0 0;
+  max-height: 60dvh;                    /* dvh, so the keyboard shrinks it */
+  border-radius: 16px 16px 0 0;
+  padding-bottom: env(safe-area-inset-bottom);
+  display: flex;
+  flex-direction: column-reverse;       /* input at the bottom, list above */
+}
+
+[cmdk-root][data-touch] [cmdk-item] {
+  min-height: 44px;                     /* a tap target, not a hover target */
+}
+```
+
+There is no `⌘K` on a phone and no convention to lean on, so a touch palette
+needs a visible way in — a button, or a persistent bar. That is the app's call:
+it costs screen real estate the library has no right to spend.
+
 ## Parts and styling
 
 All parts forward props and refs to an appropriate element. Each part has a specific data-attribute that can be used for styling.
@@ -619,6 +667,7 @@ introduced by agentk.
 | `[cmdk-root]` | Top-level element (Command / Command.Dialog) |
 | `[cmdk-root][data-agentk-mode="<mode>"]` | Reflects the current state machine mode (`browse`, `form`, `executing`, `result`, `planning`, `approval`) |
 | `[cmdk-root][data-agentk-hint]` | Present when `AgentHint` is showing |
+| `[cmdk-root][data-touch]` | Present when the primary pointer is coarse — style the touch layout off this, not a viewport width |
 | `[cmdk-overlay]` | Dialog backdrop |
 | `[cmdk-dialog]` | Dialog surface |
 | `[cmdk-input]` | Search input |

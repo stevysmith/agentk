@@ -4,7 +4,27 @@ Notable changes per published release. Versions link to the tag; anything not
 listed here is site or docs work that doesn't change the package.
 
 The jump from 0.4.1 to 0.6.2 is real — 0.5.x was never cut. Published versions
-are 0.3.0, 0.3.1, 0.4.0, 0.4.1, 0.6.2 and 0.7.0.
+are 0.3.0, 0.3.1, 0.4.0, 0.4.1, 0.6.2, 0.7.0 and 0.7.1.
+
+## [0.7.1] — 2026-09-04
+
+Touch fixes, ahead of WebMCP reaching Android. Nothing changes for a mouse.
+
+- A finger scrolling the list no longer drags the selection with it.
+  `onPointerMove` ignores `pointerType === 'touch'`, where a pointer crossing a
+  row is a scroll and the row under it is incidental. (The related cmdk issue,
+  a tap not selecting at all, was already fixed in this fork.)
+- `autoFocus` on `Command.Input` is ignored on a touch device, because focusing
+  opens the on-screen keyboard over the list the palette just opened to show —
+  the complaint in [cmdk#127](https://github.com/pacocoursey/cmdk/issues/127),
+  closed there without a fix. `autoFocusOnTouch` restores it for a search-first
+  palette. `autoFocus` is applied in an effect rather than handed to the DOM, so
+  the decision can read the real pointer type, which is unknowable while
+  rendering on a server.
+- The root carries `data-touch` when the primary pointer is coarse, so a touch
+  layout keys off the pointer instead of a viewport width — a tablet with a
+  keyboard is not a phone, and a narrow desktop window is not a thumb. The
+  README has a bottom-sheet recipe built on it.
 
 ## [0.7.0] — 2026-09-04
 
@@ -84,6 +104,7 @@ rather than theory.
 First public release under `@stevysmith/agentk`: the command palette, agent
 mode, and the WebMCP primitives, published with public access.
 
+[0.7.1]: https://github.com/stevysmith/agentk/releases/tag/v0.7.1
 [0.7.0]: https://github.com/stevysmith/agentk/releases/tag/v0.7.0
 [0.6.2]: https://github.com/stevysmith/agentk/releases/tag/v0.6.2
 [0.4.1]: https://github.com/stevysmith/agentk/releases/tag/v0.4.1

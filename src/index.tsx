@@ -144,6 +144,14 @@ type GroupProps = Children &
 type InputProps = Omit<React.ComponentPropsWithoutRef<typeof Primitive.input>, 'value' | 'onChange' | 'type'> & {
   value?: string
   onValueChange?: (search: string) => void
+  /**
+   * Honour `autoFocus` on a touch device too. Off by default: focusing the
+   * input opens the on-screen keyboard, which covers most of the list the
+   * palette just opened to show. Set this when the keyboard is the point —
+   * a search-first palette where nobody browses the list.
+   * @default false
+   */
+  autoFocusOnTouch?: boolean
 }
 type CommandFilter = (value: string, search: string, keywords?: string[]) => number
 
@@ -930,6 +938,10 @@ const Command = React.forwardRef<HTMLDivElement, CommandProps>((props, forwarded
 
   // Track when agent hint should show (no matches + has search + has agent + browse mode)
   const [agentHintVisible, setAgentHintVisible] = React.useState(false)
+  // Surfaced as `data-touch` on the root so a consumer can style the touch
+  // layout (a bottom sheet, bigger rows) off the palette itself, rather than
+  // guessing at a viewport width that says nothing about the pointer.
+  const coarsePointer = useCoarsePointer()
 
   // ── P1.6: Cancellation via AbortController ──
   const abortControllerRef = React.useRef<AbortController | null>(null)
@@ -1528,6 +1540,7 @@ const Command = React.forwardRef<HTMLDivElement, CommandProps>((props, forwarded
       tabIndex={-1}
       {...etc}
       cmdk-root=""
+      data-touch={coarsePointer ? '' : undefined}
       data-agentk-mode={akState.mode}
       data-agentk-agent={agent ? '' : undefined}
       data-agentk-hint={agentHintVisible ? '' : undefined}
@@ -1739,7 +1752,17 @@ const Item = React.forwardRef<HTMLDivElement, ItemProps>((props, forwardedRef) =
       aria-selected={Boolean(selected)}
       data-disabled={Boolean(disabled)}
       data-selected={Boolean(selected)}
-      onPointerMove={disabled || context.getDisablePointerSelection() ? undefined : select}
+      onPointerMove={
+        disabled || context.getDisablePointerSelection()
+          ? undefined
+          : (e) => {
+              // A finger dragging down the list is scrolling, not pointing at a
+              // row. Selecting on it makes the highlight chase the thumb and
+              // leaves the wrong item selected when the scroll stops.
+              if (e.pointerType === 'touch') return
+              select()
+            }
+      }
       onClick={disabled ? undefined : onSelect}
     >
       {props.children}
@@ -1797,9 +1820,33 @@ const Separator = React.forwardRef<HTMLDivElement, SeparatorProps>((props, forwa
   return <Primitive.div ref={composeRefs(ref, forwardedRef)} {...etc} cmdk-separator="" role="separator" />
 })
 
+/**
+ * True when the primary pointer is coarse — a finger, not a mouse. Read at the
+ * moment it is needed rather than during render, so server output and the first
+ * client render agree.
+ */
+function isCoarsePointer(): boolean {
+  return typeof window !== 'undefined' && !!window.matchMedia?.('(pointer: coarse)').matches
+}
+
+/** `isCoarsePointer` as state, for the parts of the tree that style on it. */
+function useCoarsePointer(): boolean {
+  const [coarse, setCoarse] = React.useState(false)
+  React.useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return
+    const mq = window.matchMedia('(pointer: coarse)')
+    const sync = () => setCoarse(mq.matches)
+    sync()
+    mq.addEventListener?.('change', sync)
+    return () => mq.removeEventListener?.('change', sync)
+  }, [])
+  return coarse
+}
+
 const Input = React.forwardRef<HTMLInputElement, InputProps>((props, forwardedRef) => {
-  const { onValueChange, ...etc } = props
+  const { onValueChange, autoFocus, autoFocusOnTouch, ...etc } = props
   const isControlled = props.value != null
+  const inputRef = React.useRef<HTMLInputElement>(null)
   const store = useStore()
   const search = useCmdk((state) => state.search)
   const selectedItemId = useCmdk((state) => state.selectedItemId)
@@ -1811,9 +1858,19 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>((props, forwardedRe
     }
   }, [props.value])
 
+  // `autoFocus` is applied here rather than handed to the DOM, because on a
+  // phone it summons the on-screen keyboard over the very list the palette
+  // just opened to show. Focusing in an effect also lets the decision read the
+  // real pointer type, which is not knowable while rendering on a server.
+  React.useEffect(() => {
+    if (!autoFocus) return
+    if (isCoarsePointer() && !autoFocusOnTouch) return
+    inputRef.current?.focus()
+  }, [])
+
   return (
     <Primitive.input
-      ref={forwardedRef}
+      ref={composeRefs(inputRef, forwardedRef)}
       {...etc}
       cmdk-input=""
       autoComplete="off"
