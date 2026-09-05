@@ -48,9 +48,10 @@ import {
  * stage 5  Human in the loop: an approval dock under the rows;
  *          Approve makes the stage devices actually change.
  *          requireApproval is opt-in.
- * stage 6  Ship it: honest status (Chrome origin trial, W3C
- *          WebML CG, not Firefox/Safari; agentk degrades to a
- *          plain palette) + npm install + links.
+ * stage 6  Ship it: honest status (Chrome 149 + Edge 150 origin
+ *          trials, ChatGPT Desktop, Shopify; W3C WebML CG; not
+ *          Firefox/Safari; agentk degrades to a plain palette)
+ *          + npm install + links.
  * ───────────────────────────────────────────────────────── */
 
 // ─── Stage + timing constants (no magic numbers in JSX) ───
@@ -318,7 +319,7 @@ export default function LearnPage() {
     const names = LEARN_TOOLS.map((t) => WEBMCP_PREFIX + t.name).join(', ')
     const reality = activeSurface
       ? `These three tools — ${names} — are live on ${activeSurface} right now. An agent on this page can call them.`
-      : `Load this page in Chrome with the WebMCP origin trial and these three tools — ${names} — register on document.modelContext for real. This browser doesn't expose it, so the walkthrough runs in honest simulation.`
+      : `Load this page in Chrome 149 or Edge 150 with the WebMCP origin trial and these three tools — ${names} — register on document.modelContext for real. This browser doesn't expose it, so the walkthrough runs in honest simulation.`
     console.log(
       `%cagentk%c · a command palette for the agentic web.\n${reality}\nSource: https://github.com/stevysmith/agentk`,
       'font-weight:700;color:#f59e0b',

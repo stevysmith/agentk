@@ -550,6 +550,82 @@ export const showcaseStyles = `
     background: rgba(255, 255, 255, 0.04);
   }
 
+  /* ─── The same task, both ways ───
+     Two columns that are deliberately NOT symmetrical: the left is a list that
+     keeps going, the right is one line. The asymmetry is the argument, so no
+     equal-height card treatment. */
+  .actuation { margin: 56px 0 0; }
+
+  .actuation-title {
+    font-family: var(--serif);
+    font-size: 24px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    margin: 0 0 22px;
+    color: var(--text);
+  }
+
+  .actuation-title em {
+    font-style: italic;
+    color: var(--text-2);
+  }
+
+  .actuation-cols {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 28px;
+    align-items: start;
+  }
+
+  .actuation-col h3 {
+    margin: 0 0 12px;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-3);
+  }
+
+  .actuation-col[data-kind="tools"] h3 { color: var(--accent-2); }
+  .dark .actuation-col[data-kind="tools"] h3 { color: #fbbf24; }
+
+  .actuation-steps {
+    margin: 0;
+    padding-left: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 14px;
+    color: var(--text-2);
+  }
+
+  .actuation-call {
+    display: block;
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--text);
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-left: 2px solid var(--accent);
+    border-radius: 8px;
+    padding: 12px 14px;
+    overflow-x: auto;
+    white-space: pre;
+  }
+
+  .actuation-note {
+    margin: 12px 0 0;
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--text-3);
+  }
+
+  @media (max-width: 760px) {
+    .actuation-cols { grid-template-columns: 1fr; gap: 24px; }
+    .actuation-title { font-size: 21px; }
+  }
+
   /* ─── Who has it ───
      A hairline band, not a logo cloud: names in text colour, status in the
      muted one, and the gap set apart on the right so it reads as part of the

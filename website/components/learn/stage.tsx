@@ -1031,9 +1031,9 @@ function summarizePlanRun(plan: PlanCall[]): string {
 // ─────────────────────────────────────────────────────────
 
 const SHIP_STATUS = [
-  'WebMCP is a Chrome origin trial (Chrome 149–156), not a shipped standard. The API even moved mid-trial, from navigator.modelContext to document.modelContext.',
-  'It is being developed in the W3C Web Machine Learning Community Group.',
-  'Firefox and Safari don’t have it.',
+  'Origin trials are live in Chrome 149 and Edge 150. ChatGPT Desktop supports it, Brave has it experimentally in Leo, and Shopify puts WebMCP tools on every Liquid storefront.',
+  'It is still a trial, not a shipped standard — the API moved mid-trial, from navigator.modelContext to document.modelContext.',
+  'It is being developed in the W3C Web Machine Learning Community Group. Firefox and Safari have standards positions open, and neither has it yet.',
   'agentk feature-detects: without WebMCP you still ship a command palette. Nothing breaks.',
 ]
 

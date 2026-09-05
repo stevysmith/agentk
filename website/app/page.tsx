@@ -79,6 +79,37 @@ const ADOPTION = [
   { who: 'Shopify', what: 'every Liquid storefront, 12 tools' },
 ] as const
 
+/** The same task, done both ways. No benchmark numbers: Chrome publishes none,
+ *  and the ones circulating (89%, 90%) trace to blog posts rather than a source
+ *  worth quoting on a landing page. The steps below are the argument. */
+const ACTUATION: Record<ThemeId, { task: string; steps: string[]; call: string }> = {
+  devops: {
+    task: 'deploy staging from main',
+    steps: ['Screenshot the page', 'Find something that looks like Deploy', 'Click it, screenshot again', 'Locate the environment select', 'Pick staging, type the branch', 'Screenshot to check it worked'],
+    call: 'deploy({ environment: "staging", branch: "main" })',
+  },
+  linear: {
+    task: 'file a bug and assign it',
+    steps: ['Screenshot the page', 'Find the new-issue control', 'Click, wait for the panel', 'Type into the right field', 'Find the assignee picker', 'Screenshot to confirm it saved'],
+    call: 'create_issue({ title: "Login redirect loops", assignee: "me" })',
+  },
+  smarthome: {
+    task: 'dim the living room',
+    steps: ['Screenshot the page', 'Find the living-room card', 'Guess which control is brightness', 'Drag the slider to roughly 30%', 'Screenshot to see where it landed', 'Drag again if it missed'],
+    call: 'set_brightness({ room: "living room", level: 30 })',
+  },
+  shop: {
+    task: 'add a size M to the cart',
+    steps: ['Screenshot the page', 'Find the size selector', 'Click M, screenshot again', 'Find Add to cart', 'Click it, wait', 'Screenshot to confirm the cart changed'],
+    call: 'add_to_cart({ sku: "AK-2291", size: "M" })',
+  },
+  raycast: {
+    task: 'open the clipboard history',
+    steps: ['Screenshot the page', 'Scan the list for the right row', 'Click it, screenshot again', 'Check whether the right panel opened', 'Scroll if it did not', 'Screenshot to confirm'],
+    call: 'open_command({ name: "Clipboard History" })',
+  },
+}
+
 const THEME_COMPONENTS: Record<ThemeId, React.FC<{ placeholder?: string }>> = {
   raycast: RaycastTheme,
   linear: LinearTheme,
@@ -505,8 +536,8 @@ export default function ShowcasePage() {
                 <h1 className="page-title">agentk</h1>
                 <span className="version-badge">v{version}</span>
               </div>
-              <p className="tagline">The command palette<br />for the agentic web.</p>
-              <p className="tagline-sub"><strong>A React component</strong>: define your capabilities once as JSON&nbsp;Schema tools. People get the palette; AI agents get a WebMCP endpoint &mdash; one definition, two ways in.</p>
+              <p className="tagline">Your site has a<br />second visitor.</p>
+              <p className="tagline-sub"><strong>It doesn&rsquo;t click &mdash; it calls.</strong> agentk is a React component that turns one tool definition into both: a &#8984;K palette for people, and a WebMCP surface for agents. One definition, two ways in.</p>
 
               {/* Walkthrough — leads the CTA stack, the interactive proof */}
               <a href="/learn" className="hero-walkthrough">
@@ -793,6 +824,40 @@ export default function ShowcasePage() {
               ))}
             </ul>
             <p className="adoption-gap">Firefox and Safari: standards positions open</p>
+          </motion.section>
+
+          {/* ─── The same task, both ways ───
+              The question the page never answered: why not just point a
+              browser agent at the DOM? Tracks the active theme so it argues
+              about the demo actually on screen. */}
+          <motion.section
+            className="actuation"
+            initial={reduced ? false : { opacity: 0, y: 10 }}
+            animate={mounted ? { opacity: 1, y: 0 } : {}}
+            transition={rt(0.5, 0.7)}
+          >
+            <h2 className="actuation-title">
+              How an agent does <em>{ACTUATION[activeTheme].task}</em>
+            </h2>
+            <div className="actuation-cols">
+              <div className="actuation-col" data-kind="pixels">
+                <h3>By looking at the page</h3>
+                <ol className="actuation-steps">
+                  {ACTUATION[activeTheme].steps.map((step) => (
+                    <li key={step}>{step}</li>
+                  ))}
+                </ol>
+              </div>
+              <div className="actuation-col" data-kind="tools">
+                <h3>By calling the tool</h3>
+                <code className="actuation-call">{ACTUATION[activeTheme].call}</code>
+                <p className="actuation-note">
+                  One call, typed arguments, a result the agent can read. Chrome puts it plainly:
+                  tools are &ldquo;more reliable than actuation, which may have numerous steps and
+                  leaves each step open to interpretation by the agent.&rdquo;
+                </p>
+              </div>
+            </div>
           </motion.section>
 
           {/* ─── Footer ─── */}
