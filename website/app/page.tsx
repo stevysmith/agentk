@@ -68,6 +68,17 @@ type ThemeId = (typeof THEMES)[number]['id']
 // Theme renderer map
 // ─────────────────────────────────────────────────────────
 
+/** Who can actually call a page's tools today. Sourced from the WebMCP spec's
+ *  implementation-status.md and shopify.dev/docs/api/web-mcp — deliberately
+ *  facts rather than logos, and the gap is on the page too. */
+const ADOPTION = [
+  { who: 'Chrome 149', what: 'origin trial' },
+  { who: 'Edge 150', what: 'origin trial' },
+  { who: 'ChatGPT Desktop', what: 'supported' },
+  { who: 'Brave', what: 'experimental, in Leo' },
+  { who: 'Shopify', what: 'every Liquid storefront, 12 tools' },
+] as const
+
 const THEME_COMPONENTS: Record<ThemeId, React.FC<{ placeholder?: string }>> = {
   raycast: RaycastTheme,
   linear: LinearTheme,
@@ -259,7 +270,7 @@ export default function ShowcasePage() {
           : null
     const reality = activeSurface
       ? `This browser exposes WebMCP — agentk can register your tools on ${activeSurface} for agents to call.`
-      : "WebMCP is a Chrome origin trial, so this browser doesn't expose it. agentk degrades to a plain command palette — nothing breaks."
+      : "WebMCP is in origin trial in Chrome 149 and Edge 150; this browser doesn't expose it. agentk degrades to a plain command palette — nothing breaks."
     console.log(
       `%cagentk%c · the command palette for the agentic web.\n${reality}\nSource: https://github.com/stevysmith/agentk`,
       'font-weight:700;color:#f59e0b',
@@ -530,10 +541,14 @@ export default function ShowcasePage() {
                 </a>
               </div>
 
-              {/* Honesty — last in the stack, as designed fine print */}
+              {/* Honesty — last in the stack, as designed fine print. The
+                  hedge is no longer "will this be real"; it is which engines
+                  have it yet, which is why the fallback clause still earns
+                  its place. Every claim here is in the spec's own
+                  implementation-status.md. */}
               <div className="hero-honesty">
-                <span className="hero-honesty-eyebrow">Origin trial</span>
-                <p>WebMCP is a Chrome origin trial, not a shipped standard. agentk feature-detects it and falls back to a plain command palette wherever it&rsquo;s missing &mdash; nothing breaks.</p>
+                <span className="hero-honesty-eyebrow">Shipping</span>
+                <p>Origin trials are live in Chrome&nbsp;149 and Edge&nbsp;150, ChatGPT Desktop supports it, and Shopify puts WebMCP tools on every Liquid storefront. Firefox and Safari have standards positions open &mdash; so agentk feature-detects and falls back to a plain command palette wherever it&rsquo;s missing.</p>
               </div>
 
               {/* The page's one handmade moment: a quiet margin note (Caveat)
@@ -756,6 +771,29 @@ export default function ShowcasePage() {
               </motion.div>
             </div>
           </div>
+
+          {/* ─── Who has it ───
+              Not a logo cloud: each row is a fact with a source, and the last
+              one is the gap. Everything here comes from the spec's own
+              implementation-status.md and Shopify's WebMCP docs — if it moves,
+              those move first. */}
+          <motion.section
+            className="adoption"
+            aria-label="WebMCP implementation status"
+            initial={reduced ? false : { opacity: 0, y: 10 }}
+            animate={mounted ? { opacity: 1, y: 0 } : {}}
+            transition={rt(0.5, 0.65)}
+          >
+            <ul className="adoption-list" role="list">
+              {ADOPTION.map((a) => (
+                <li key={a.who} className="adoption-item">
+                  <b>{a.who}</b>
+                  <span>{a.what}</span>
+                </li>
+              ))}
+            </ul>
+            <p className="adoption-gap">Firefox and Safari: standards positions open</p>
+          </motion.section>
 
           {/* ─── Footer ─── */}
           <motion.footer

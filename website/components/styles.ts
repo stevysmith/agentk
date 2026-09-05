@@ -550,6 +550,55 @@ export const showcaseStyles = `
     background: rgba(255, 255, 255, 0.04);
   }
 
+  /* ─── Who has it ───
+     A hairline band, not a logo cloud: names in text colour, status in the
+     muted one, and the gap set apart on the right so it reads as part of the
+     same honest sentence rather than a disclaimer hidden elsewhere. */
+  .adoption {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 10px 24px;
+    margin: 56px 0 0;
+    padding: 16px 0;
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .adoption-list {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 8px 22px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .adoption-item {
+    display: flex;
+    align-items: baseline;
+    gap: 7px;
+    font-size: 13px;
+    color: var(--text-3);
+  }
+
+  .adoption-item b {
+    font-weight: 500;
+    color: var(--text);
+  }
+
+  .adoption-gap {
+    margin: 0 0 0 auto;
+    font-size: 12.5px;
+    color: var(--text-3);
+  }
+
+  @media (max-width: 760px) {
+    .adoption { gap: 12px; }
+    .adoption-gap { margin-left: 0; }
+  }
+
   /* ─── Touch ───
      Keyed off agentk 0.7.1's data-touch attribute, which reflects the POINTER, not the
      viewport: a narrow desktop window keeps the desktop palette, and a tablet
