@@ -791,6 +791,16 @@ export const showcaseStyles = `
     .sheet-trigger { display: flex; }
   }
 
+  /* Once the sheet is up the trigger has done its job, and leaving it there
+     covers the input. The sheet is dismissed by its handle or the backdrop,
+     which is what a phone user reaches for anyway. */
+  .sheet-trigger[data-hidden] {
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(6px);
+    transition: opacity 0.18s var(--ease-soft), transform 0.18s var(--ease-soft);
+  }
+
   .sheet-trigger::before {
     content: '';
     width: 7px;
@@ -827,6 +837,23 @@ export const showcaseStyles = `
     border-radius: 16px 16px 0 0;
     border-bottom: none;
     padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  /* The handle is the dismissal affordance: standard on a sheet, and it costs
+     no width. Padding above it keeps the first row clear. */
+  .demo-area[data-sheet] .palette-container { padding-top: 16px; }
+
+  .demo-area[data-sheet] .palette-container::before {
+    content: '';
+    position: absolute;
+    top: 7px;
+    left: 50%;
+    width: 36px;
+    height: 4px;
+    margin-left: -18px;
+    border-radius: 2px;
+    background: var(--gray7);
+    z-index: 1;
   }
 
   .demo-area[data-sheet] .palette-container [cmdk-root] {

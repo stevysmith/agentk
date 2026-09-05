@@ -952,25 +952,28 @@ export default function ShowcasePage() {
             <a href="https://paco.me" target="_blank" rel="noopener noreferrer">Paco Coursey</a>
           </motion.footer>
         </div>
+
+        {/* Touch only (CSS-gated on `pointer: coarse`): the way into the
+            palette when there is no ⌘K to press. Must live INSIDE
+            .showcase-page — the dark theme is a class on that element, so
+            anything outside it resolves every token to the light palette. */}
+        <div
+          className="sheet-backdrop"
+          data-open={sheetOpen ? '' : undefined}
+          onClick={() => setSheetOpen(false)}
+          aria-hidden="true"
+        />
+        <button
+          type="button"
+          className="sheet-trigger"
+          data-hidden={sheetOpen ? '' : undefined}
+          onClick={() => setSheetOpen(true)}
+          aria-expanded={sheetOpen}
+        >
+          Ask or search&hellip;
+        </button>
       </div>
 
-      {/* Touch only (CSS-gated on `pointer: coarse`): the way into the palette
-          when there is no ⌘K to press. Tapping promotes the same demo palette
-          to the bottom sheet the README documents. */}
-      <div
-        className="sheet-backdrop"
-        data-open={sheetOpen ? '' : undefined}
-        onClick={() => setSheetOpen(false)}
-        aria-hidden="true"
-      />
-      <button
-        type="button"
-        className="sheet-trigger"
-        onClick={() => setSheetOpen((open) => !open)}
-        aria-expanded={sheetOpen}
-      >
-        {sheetOpen ? 'Close' : 'Ask or search\u2026'}
-      </button>
     </>
   )
 }
