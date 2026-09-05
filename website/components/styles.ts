@@ -550,13 +550,8 @@ export const showcaseStyles = `
     background: rgba(255, 255, 255, 0.04);
   }
 
-  /* ─── The same task, both ways ───
-     Two columns that are deliberately NOT symmetrical: the left is a list that
-     keeps going, the right is one line. The asymmetry is the argument, so no
-     equal-height card treatment. */
-  .actuation { margin: 56px 0 0; }
-
-  .actuation-title {
+  /* Shared heading for the reading sections below the demo. */
+  .section-title {
     font-family: var(--serif);
     font-size: 24px;
     font-weight: 600;
@@ -564,6 +559,85 @@ export const showcaseStyles = `
     margin: 0 0 22px;
     color: var(--text);
   }
+
+  /* ─── If you have been asked to add WebMCP ───
+     Claim in text colour, consequence in the muted one. Two columns so five
+     points read as a short list rather than a wall. */
+  .evaluation { margin: 56px 0 0; }
+
+  .evaluation-list {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 26px 32px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .evaluation-item h3 {
+    margin: 0 0 6px;
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: -0.005em;
+    color: var(--text);
+  }
+
+  .evaluation-item p {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--text-2);
+  }
+
+  /* ─── Which one you actually need ───
+     A routing table, not a comparison chart: no ticks, no columns of green.
+     Only the last row is ours, and it is marked with the same single accent
+     the rest of the page uses. */
+  .options { margin: 56px 0 0; }
+
+  .options-list {
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    border-top: 1px solid var(--border);
+  }
+
+  .options-row {
+    display: grid;
+    grid-template-columns: minmax(180px, 34%) 1fr;
+    gap: 8px 28px;
+    padding: 16px 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .options-row dt {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text);
+  }
+
+  .options-row dd {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--text-2);
+  }
+
+  .options-row[data-ours] dt { color: var(--accent-2); }
+  .dark .options-row[data-ours] dt { color: #fbbf24; }
+  .options-row[data-ours] dd { color: var(--text); }
+
+  @media (max-width: 760px) {
+    .evaluation-list { grid-template-columns: 1fr; gap: 22px; }
+    .options-row { grid-template-columns: 1fr; gap: 4px; }
+    .section-title { font-size: 21px; }
+  }
+
+  /* ─── The same task, both ways ───
+     Two columns that are deliberately NOT symmetrical: the left is a list that
+     keeps going, the right is one line. The asymmetry is the argument, so no
+     equal-height card treatment. */
+  .actuation { margin: 56px 0 0; }
 
   .actuation-title em {
     font-style: italic;

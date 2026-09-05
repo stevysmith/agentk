@@ -79,6 +79,47 @@ const ADOPTION = [
   { who: 'Shopify', what: 'every Liquid storefront, 12 tools' },
 ] as const
 
+/** For a reader who has been told to "look at WebMCP", not one who has already
+ *  fought it. Consequences, not war stories: no version numbers, no issue
+ *  links, nothing that reads as an unstable ecosystem to someone deciding
+ *  whether to depend on it. */
+const EVALUATION = [
+  {
+    claim: 'You define your tools once.',
+    detail:
+      'The same JSON Schema definition drives a \u2318K palette for people and the surface agents call. No second implementation to keep in sync, and no separate agent API to maintain.',
+  },
+  {
+    claim: 'The work is not wasted if agents never show up.',
+    detail:
+      'Where WebMCP is not available, you have still shipped a command palette your users can use today. That is the whole downside case.',
+  },
+  {
+    claim: 'You decide what an agent may do on its own.',
+    detail:
+      'Mark a tool read-only and it runs without interrupting anyone. Mark it consequential \u2014 paying, sending, publishing \u2014 and it stops for a person every time, whatever else is switched on.',
+  },
+  {
+    claim: 'It works where the agents actually are.',
+    detail:
+      'Chrome, Edge and ChatGPT\u2019s desktop browser each expose WebMCP slightly differently, and a phone is not a laptop. agentk handles those differences so your page does not have to.',
+  },
+  {
+    claim: 'The spec is still moving. Your code does not have to.',
+    detail:
+      'It is a live standard, developed in the W3C Web Machine Learning Community Group. When it changes, agentk changes \u2014 that is the point of taking a dependency rather than writing registration by hand.',
+  },
+] as const
+
+/** The honest routing table. A reader who fits the last row has disqualified
+ *  the other three themselves, which is worth more than claiming to win them. */
+const OPTIONS = [
+  { when: 'On Shopify', then: 'You already have WebMCP tools on every storefront — catalog, cart, checkout. You may need nothing.' },
+  { when: 'On Cloudflare', then: 'Their edge bridge gives agents an interface with no code and no origin changes. Fastest path if generic tools are enough.' },
+  { when: 'Three static tools, no UI', then: 'Registering them by hand is genuinely fine. It is not much code.' },
+  { when: 'A tool list that changes as people use the app — or the same actions need a human interface too', then: 'That is agentk.', ours: true },
+] as const
+
 /** The same task, done both ways. No benchmark numbers: Chrome publishes none,
  *  and the ones circulating (89%, 90%) trace to blog posts rather than a source
  *  worth quoting on a landing page. The steps below are the argument. */
@@ -836,7 +877,7 @@ export default function ShowcasePage() {
             animate={mounted ? { opacity: 1, y: 0 } : {}}
             transition={rt(0.5, 0.7)}
           >
-            <h2 className="actuation-title">
+            <h2 className="section-title actuation-title">
               How an agent does <em>{ACTUATION[activeTheme].task}</em>
             </h2>
             <div className="actuation-cols">
@@ -858,6 +899,42 @@ export default function ShowcasePage() {
                 </p>
               </div>
             </div>
+          </motion.section>
+
+          {/* ─── For the person who was handed this ─── */}
+          <motion.section
+            className="evaluation"
+            initial={reduced ? false : { opacity: 0, y: 10 }}
+            animate={mounted ? { opacity: 1, y: 0 } : {}}
+            transition={rt(0.5, 0.72)}
+          >
+            <h2 className="section-title">If you&rsquo;ve been asked to add WebMCP</h2>
+            <ul className="evaluation-list" role="list">
+              {EVALUATION.map((e) => (
+                <li key={e.claim} className="evaluation-item">
+                  <h3>{e.claim}</h3>
+                  <p>{e.detail}</p>
+                </li>
+              ))}
+            </ul>
+          </motion.section>
+
+          {/* ─── The honest routing table ─── */}
+          <motion.section
+            className="options"
+            initial={reduced ? false : { opacity: 0, y: 10 }}
+            animate={mounted ? { opacity: 1, y: 0 } : {}}
+            transition={rt(0.5, 0.76)}
+          >
+            <h2 className="section-title">Which one you actually need</h2>
+            <dl className="options-list">
+              {OPTIONS.map((o) => (
+                <div key={o.when} className="options-row" data-ours={'ours' in o && o.ours ? '' : undefined}>
+                  <dt>{o.when}</dt>
+                  <dd>{o.then}</dd>
+                </div>
+              ))}
+            </dl>
           </motion.section>
 
           {/* ─── Footer ─── */}
