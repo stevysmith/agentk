@@ -695,10 +695,67 @@ export const showcaseStyles = `
     color: var(--text-3);
   }
 
+  /* A grid item's min-width defaults to auto, so the code line's intrinsic
+     width became the column's floor: on a phone both columns ran 53px past the
+     viewport and .showcase-page (overflow-x: hidden) quietly cut the text off
+     mid-word. min-width: 0 lets the column shrink and hands the overflow back
+     to the code block, which is the only thing that should scroll. */
+  .actuation-col { min-width: 0; }
+
   @media (max-width: 760px) {
     .actuation-cols { grid-template-columns: 1fr; gap: 24px; }
     .actuation-title { font-size: 21px; }
   }
+
+
+  /* ─── Phone ───
+     The page is 4.4 screens on a 393px viewport and the hero alone is two of
+     them. These trim the parts that cost the most and give the least. */
+  @media (max-width: 640px) {
+    .adoption, .actuation, .evaluation, .options { margin-top: 40px; }
+
+    /* 30 lines of TSX at 12px is not read on a phone; it is scrolled past.
+       Capped with a fade, and tappable if someone actually wants it. */
+    .code-area[data-collapsed] .code-block {
+      max-height: 220px;
+      overflow: hidden;
+    }
+
+    .code-area[data-collapsed]::after {
+      content: '';
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: 96px;
+      background: linear-gradient(to bottom, transparent, var(--card-bg));
+      border-radius: 0 0 12px 12px;
+      pointer-events: none;
+    }
+
+    .code-area { position: relative; }
+
+    .code-expand {
+      position: absolute;
+      left: 50%;
+      bottom: 12px;
+      transform: translateX(-50%);
+      z-index: 1;
+      min-height: 36px;
+      padding: 0 16px;
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      background: var(--card-bg);
+      color: var(--text-2);
+      font-family: var(--font);
+      font-size: 13px;
+      cursor: pointer;
+    }
+
+  }
+
+  .code-expand { display: none; }
+  @media (max-width: 640px) { .code-expand { display: block; } }
 
   /* ─── Who has it ───
      A hairline band, not a logo cloud: names in text colour, status in the
@@ -2385,6 +2442,11 @@ export const showcaseStyles = `
   }
 
   @media (max-width: 640px) {
+    /* Redundant once all five tabs are on screen, and the lone forward arrow
+       was orphaning itself onto a second row. Declared here, after the base
+       .theme-arrow rules, or it loses the cascade. */
+    .theme-arrow { display: none; }
+
     .page-title {
       font-size: 32px;
     }

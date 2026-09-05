@@ -316,6 +316,9 @@ export default function ShowcasePage() {
   // The demo palette, promoted to a bottom sheet on touch. Inline stays inline:
   // the page has a code block under the palette, and a phone has no ⌘K.
   const [sheetOpen, setSheetOpen] = useState(false)
+  // The code block is 514px on a phone — a wall of TSX nobody reads at that
+  // size. Capped with a fade until someone asks for it.
+  const [codeExpanded, setCodeExpanded] = useState(false)
   const [dark, setDark] = useState(false)
   const [codeCopied, setCodeCopied] = useState(false)
   const themeTabsRef = useRef<HTMLDivElement>(null)
@@ -760,6 +763,7 @@ export default function ShowcasePage() {
               {/* Code snippet — identical surface to the palette above */}
               <motion.div
                 className="code-area"
+                data-collapsed={codeExpanded ? undefined : ''}
                 initial={reduced ? false : { opacity: 0, y: 12 }}
                 animate={mounted ? { opacity: 1, y: 0 } : {}}
                 transition={rt(0.5, 0.5)}
@@ -799,6 +803,13 @@ export default function ShowcasePage() {
                     <code>{highlightCode(THEME_CODE[activeTheme].code)}</code>
                   </motion.pre>
                 </AnimatePresence>
+                <button
+                  type="button"
+                  className="code-expand"
+                  onClick={() => setCodeExpanded((v) => !v)}
+                >
+                  {codeExpanded ? 'Show less' : 'Show the code'}
+                </button>
               </motion.div>
 
               {/* Single demo CTA (deduped) + repurposed docs link */}
