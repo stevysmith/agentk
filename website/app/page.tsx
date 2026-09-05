@@ -951,27 +951,33 @@ export default function ShowcasePage() {
             {' '}by{' '}
             <a href="https://paco.me" target="_blank" rel="noopener noreferrer">Paco Coursey</a>
           </motion.footer>
+
+          {/* Touch only (CSS-gated on `pointer: coarse`): the way into the
+              palette when there is no ⌘K to press.
+
+              Both must live inside .page-content, which is position:relative
+              with z-index:1 — a stacking context. Outside it, the sheet's
+              z-index is judged against a context it is not part of, so the
+              backdrop painted over the sheet and swallowed every tap. Inside,
+              trigger (40) < backdrop (41) < sheet (42) order as written.
+              .page-content also carries the dark class's tokens. */}
+          <div
+            className="sheet-backdrop"
+            data-open={sheetOpen ? '' : undefined}
+            onClick={() => setSheetOpen(false)}
+            aria-hidden="true"
+          />
+          <button
+            type="button"
+            className="sheet-trigger"
+            data-hidden={sheetOpen ? '' : undefined}
+            onClick={() => setSheetOpen(true)}
+            aria-expanded={sheetOpen}
+          >
+            Ask or search&hellip;
+          </button>
         </div>
 
-        {/* Touch only (CSS-gated on `pointer: coarse`): the way into the
-            palette when there is no ⌘K to press. Must live INSIDE
-            .showcase-page — the dark theme is a class on that element, so
-            anything outside it resolves every token to the light palette. */}
-        <div
-          className="sheet-backdrop"
-          data-open={sheetOpen ? '' : undefined}
-          onClick={() => setSheetOpen(false)}
-          aria-hidden="true"
-        />
-        <button
-          type="button"
-          className="sheet-trigger"
-          data-hidden={sheetOpen ? '' : undefined}
-          onClick={() => setSheetOpen(true)}
-          aria-expanded={sheetOpen}
-        >
-          Ask or search&hellip;
-        </button>
       </div>
 
     </>
