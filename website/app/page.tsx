@@ -230,6 +230,9 @@ export default function ShowcasePage() {
   const [copied, setCopied] = useState(false)
   const [mounted, setMounted] = useState(false)
   const [activeTheme, setActiveTheme] = useState<ThemeId>('devops')
+  // The demo palette, promoted to a bottom sheet on touch. Inline stays inline:
+  // the page has a code block under the palette, and a phone has no ⌘K.
+  const [sheetOpen, setSheetOpen] = useState(false)
   const [dark, setDark] = useState(false)
   const [codeCopied, setCodeCopied] = useState(false)
   const themeTabsRef = useRef<HTMLDivElement>(null)
@@ -647,6 +650,7 @@ export default function ShowcasePage() {
               {/* Palette */}
               <motion.div
                 className="demo-area"
+                data-sheet={sheetOpen ? '' : undefined}
                 ref={demoAreaRef}
                 layout
                 initial={reduced ? false : { opacity: 0, y: 24, scale: 0.98 }}
@@ -769,6 +773,24 @@ export default function ShowcasePage() {
           </motion.footer>
         </div>
       </div>
+
+      {/* Touch only (CSS-gated on `pointer: coarse`): the way into the palette
+          when there is no ⌘K to press. Tapping promotes the same demo palette
+          to the bottom sheet the README documents. */}
+      <div
+        className="sheet-backdrop"
+        data-open={sheetOpen ? '' : undefined}
+        onClick={() => setSheetOpen(false)}
+        aria-hidden="true"
+      />
+      <button
+        type="button"
+        className="sheet-trigger"
+        onClick={() => setSheetOpen((open) => !open)}
+        aria-expanded={sheetOpen}
+      >
+        {sheetOpen ? 'Close' : 'Ask or search\u2026'}
+      </button>
     </>
   )
 }

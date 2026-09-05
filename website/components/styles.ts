@@ -550,6 +550,107 @@ export const showcaseStyles = `
     background: rgba(255, 255, 255, 0.04);
   }
 
+  /* ─── Touch ───
+     Keyed off agentk 0.7.1's data-touch attribute, which reflects the POINTER, not the
+     viewport: a narrow desktop window keeps the desktop palette, and a tablet
+     with a trackpad is not treated as a thumb. */
+  .palette-container [cmdk-root][data-touch] [cmdk-item] {
+    min-height: 44px;
+    font-size: 15px;
+    padding: 12px;
+  }
+
+  .palette-container [cmdk-root][data-touch] [cmdk-list] { padding: 6px; }
+
+  /* The bottom sheet the README documents, on the real palette. The trigger
+     below promotes the inline demo rather than replacing it, so the page keeps
+     its shape and the sheet stays a deliberate act. */
+  .sheet-trigger {
+    display: none;
+    position: fixed;
+    left: 16px;
+    right: 16px;
+    bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+    z-index: 40;
+    align-items: center;
+    gap: 10px;
+    height: 46px;
+    padding: 0 18px;
+    border: 1px solid var(--border);
+    border-radius: 23px;
+    background: var(--card-bg);
+    box-shadow: 0 6px 20px rgb(0 0 0 / 14%);
+    color: var(--text-3);
+    font-family: var(--font);
+    font-size: 14px;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  /* There is no ⌘K on a phone, so the way in has to be visible. */
+  @media (pointer: coarse) {
+    .sheet-trigger { display: flex; }
+  }
+
+  .sheet-trigger::before {
+    content: '';
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--accent);
+    flex: none;
+  }
+
+  .sheet-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 41;
+    background: rgb(0 0 0 / 38%);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.24s var(--ease-soft);
+  }
+
+  .sheet-backdrop[data-open] { opacity: 1; pointer-events: auto; }
+
+  /* The palette leaves the flow when it becomes a sheet, so hold its space —
+     otherwise the page behind reflows and snaps back on close. */
+  .demo-area[data-sheet] { min-height: 300px; }
+
+  .demo-area[data-sheet] .palette-container {
+    position: fixed;
+    inset: auto 0 0;
+    z-index: 42;
+    max-width: none;
+    /* dvh, so the sheet gives way to the on-screen keyboard instead of
+       hiding behind it. */
+    max-height: 68dvh;
+    border-radius: 16px 16px 0 0;
+    border-bottom: none;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  .demo-area[data-sheet] .palette-container [cmdk-root] {
+    display: flex;
+    flex-direction: column;
+    max-height: inherit;
+  }
+
+  /* The input goes last: it sits directly above the keyboard, and the results
+     grow up and away from it, so the row being read is never the row about to
+     be covered. */
+  .demo-area[data-sheet] .palette-container [cmdk-input] {
+    order: 99;
+    border-bottom: none;
+    border-top: 1px solid var(--border);
+  }
+
+  .demo-area[data-sheet] .palette-container [cmdk-list] {
+    order: 1;
+    flex: 1;
+    max-height: none;
+  }
+
   .palette-container [cmdk-item] [data-agentk-tool-icon] {
     color: var(--text-3);
     flex-shrink: 0;
