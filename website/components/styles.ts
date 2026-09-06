@@ -2551,4 +2551,55 @@ export const showcaseStyles = `
     }
     .hero-walkthrough { width: 100%; justify-content: center; }
   }
+
+  /* ─── Spacing ───────────────────────────────────────────────
+     Declared last on purpose. The rhythm was being set in three places and
+     losing to whichever shorthand came later in the file — .adoption's
+     "margin: 56px 0 0" was quietly beating the mobile rule that gave every
+     other section 40px, so the page had one gap that did not match the rest.
+     One block, one scale, at the end where nothing outranks it.
+
+     desktop        mobile
+     gutter   40        24
+     section  88        60
+     ───────────────────────────────────────────────────────── */
+  .page-content { padding: 0 40px; }
+
+  .hero { padding-top: 72px; padding-bottom: 40px; }
+
+  .adoption,
+  .actuation,
+  .evaluation,
+  .options {
+    margin-top: 88px;
+  }
+
+  .adoption { padding: 20px 0; }
+
+  .section-title { margin-bottom: 28px; }
+
+  .evaluation-list { gap: 34px 40px; }
+
+  .options-row { padding: 18px 0; }
+
+  .page-footer { padding-top: 80px; padding-bottom: 40px; }
+
+  @media (max-width: 760px) {
+    .page-content { padding: 0 24px; }
+
+    .hero { padding-top: 48px; padding-bottom: 24px; }
+
+    .adoption,
+    .actuation,
+    .evaluation,
+    .options {
+      margin-top: 60px;
+    }
+
+    .evaluation-list { gap: 28px; }
+
+    .section-title { margin-bottom: 22px; }
+
+    .page-footer { padding-top: 56px; padding-bottom: 32px; }
+  }
 `
