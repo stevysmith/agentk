@@ -688,6 +688,56 @@ export const showcaseStyles = `
     white-space: pre;
   }
 
+  /* Numbers set as a small definition list, not a chart: three medians do not
+     need axes, and the winning figure is simply the one in text colour. */
+  .bench {
+    margin: 14px 0 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  .bench-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 9px 12px;
+    background: var(--card-bg);
+    font-size: 13px;
+  }
+
+  .bench-row dt { color: var(--text-2); }
+
+  .bench-row dd {
+    margin: 0;
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .bench-row dd b {
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .bench-row dd span { color: var(--text-3); }
+
+  .bench-source {
+    margin: 8px 0 0;
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--text-3);
+  }
+
+  .bench-source a { color: var(--accent-2); }
+  .dark .bench-source a { color: #fbbf24; }
+
   .actuation-note {
     margin: 12px 0 0;
     font-size: 13px;

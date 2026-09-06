@@ -120,6 +120,16 @@ const OPTIONS = [
   { when: 'A tool list that changes as people use the app — or the same actions need a human interface too', then: 'That is agentk.', ours: true },
 ] as const
 
+/** Medians from WindTunnel (webmcp.com/benchmark), the first published
+ *  comparison of tool-calling against screen-driving agents. Quoted with its
+ *  author and sample size rather than a caveat about their interests — the
+ *  reader can weigh a named source, and the numbers are checkable. */
+const BENCHMARK = [
+  { metric: 'Time per task', tools: '7.8s', screen: '28.1s' },
+  { metric: 'Cost per task', tools: '0.6¢', screen: '5.5¢' },
+  { metric: 'Tasks solved', tools: '48/49', screen: '43/49' },
+] as const
+
 /** The same task, done both ways. No benchmark numbers: Chrome publishes none,
  *  and the ones circulating (89%, 90%) trace to blog posts rather than a source
  *  worth quoting on a landing page. The steps below are the argument. */
@@ -907,6 +917,28 @@ export default function ShowcasePage() {
                   One call, typed arguments, a result the agent can read. Chrome puts it plainly:
                   tools are &ldquo;more reliable than actuation, which may have numerous steps and
                   leaves each step open to interpretation by the agent.&rdquo;
+                </p>
+                {/* Attribution and sample size, no editorial: naming who ran it
+                    and how big it was lets the reader weigh it, which is the
+                    honest move. A warning about their interests would be
+                    competitive framing dressed as candour. */}
+                <dl className="bench">
+                  {BENCHMARK.map((b) => (
+                    <div key={b.metric} className="bench-row">
+                      <dt>{b.metric}</dt>
+                      <dd>
+                        <b>{b.tools}</b>
+                        <span>vs {b.screen}</span>
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
+                <p className="bench-source">
+                  <a href="https://webmcp.com/benchmark" target="_blank" rel="noopener noreferrer">
+                    WindTunnel
+                  </a>{' '}
+                  &mdash; 49 tasks across 8 real sites, 2,352 attempts, 16 model and interface
+                  combinations. Run by nekuda.
                 </p>
               </div>
             </div>
